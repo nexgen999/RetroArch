@@ -2782,8 +2782,10 @@ int menu_entries_get_core_title(char *s, size_t len)
    strcpy_literal(s, PACKAGE_VERSION " msvc2013" " - ");
 #elif _MSC_VER == 1900
    strcpy_literal(s, PACKAGE_VERSION " msvc2015" " - ");
-#elif _MSC_VER >= 1910 && _MSC_VER < 2000
+#elif _MSC_VER >= 1910 && _MSC_VER < 1920
    strcpy_literal(s, PACKAGE_VERSION " msvc2017" " - ");
+#elif _MSC_VER >= 1920 && _MSC_VER < 2000
+   strcpy_literal(s, PACKAGE_VERSION " msvc2019" " - ");
 #else
    strcpy_literal(s, PACKAGE_VERSION " - ");
 #endif
@@ -34536,7 +34538,7 @@ bool retroarch_main_init(int argc, char *argv[])
    {
       RARCH_ERR("%s: \"%s\"\n",
             msg_hash_to_str(MSG_FATAL_ERROR_RECEIVED_IN), p_rarch->error_string);
-      return false;
+      goto error;
    }
 
    p_rarch->rarch_error_on_init = true;
@@ -36799,7 +36801,15 @@ static enum runloop_state runloop_check_state(
       }
 
       if (!menu_driver_iterate(&iter, current_time))
-         retroarch_menu_running_finished(false);
+      {
+         if (p_rarch->rarch_error_on_init)
+         {
+            content_ctx_info_t content_info = {0};
+            task_push_start_dummy_core(&content_info);
+         }
+         else
+            retroarch_menu_running_finished(false);
+      }
 
       if (focused || !p_rarch->runloop_idle)
       {
