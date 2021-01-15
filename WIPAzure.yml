@@ -39,6 +39,11 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
+    git clone https://github.com/Nun-z/RetroArch-Redist.git
+    
+    #get non-core .dll files and move them to D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
+    
+    #get core .dll files and move them to D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
 
 #Build the package
 - task: VSBuild@1
