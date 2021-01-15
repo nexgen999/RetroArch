@@ -42,7 +42,7 @@ steps:
       Move-Item -Path ".\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
       cd ..
 
-      Gget core .dll files and move them
+      #get core .dll files and move them
       cd cores
       Move-Item -Path ".\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
       cd ..
