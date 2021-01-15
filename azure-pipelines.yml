@@ -20,7 +20,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "$(build.artifactStagingDirectory)\RetroCert.pfx'
+      Write-Host '$(build.artifactStagingDirectory)\RetroCert.pfx'
       $password = 'test'
       
       Add-Type -AssemblyName System.Security
