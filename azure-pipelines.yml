@@ -21,7 +21,7 @@ steps:
     targetType: 'inline'
     script: |
       Write-Host "$(build.artifactStagingDirectory)\RetroCert.pfx'
-      $password = '<insert here>'
+      $password = 'test'
       
       Add-Type -AssemblyName System.Security
       $cert = New-Object 
