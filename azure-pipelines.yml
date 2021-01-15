@@ -14,7 +14,7 @@ variables:
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
   appxPackageDir: '$(build.artifactStagingDirectory)\AppxPackages\\'
-  pfxpath: '$(build.artifactStagingDirectory)\\'
+  pfxpath: '$(build.artifactStagingDirectory)\RetroCert.pfx'
 
 steps:
 - task: PowerShell@2
