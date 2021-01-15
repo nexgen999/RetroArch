@@ -22,7 +22,7 @@ steps:
     targetType: 'inline'
     script: |
       Write-Host "Import Certificate" 
-      $pfxpath = '$(build.artifactStagingDirectory)\RetroCert.pfx'
+      $pfxpath = 'D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\RetroCert.pfx'
       $password = 'test'
       
       Get-ChildItem -Recurse | ?{ $_.PSIsContainer } | Select-Object FullName
