@@ -33,24 +33,19 @@ steps:
       $store.Add($cert)
       $store.Close()
 
-#Add .dll files to build
-steps:
-- task: PowerShell@2
-  inputs:
-    targetType: 'inline'
-    script: |
-    git clone https://github.com/Nun-z/RetroArch-Redist.git
-    cd RetroArch-Redist
+      #Add .dll files to build
+      git clone https://github.com/Nun-z/RetroArch-Redist.git
+      cd RetroArch-Redist
     
-    #get non-core .dll files and move them to D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
-    cd other
-    Move-Item -Path ".\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
-    cd ..
+      #Get non-core .dll files and move them
+      cd other
+      Move-Item -Path ".\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
+      cd ..
 
-    #get core .dll files and move them to D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
-    cd cores
-    Move-Item -Path ".\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
-    cd ..
+      Gget core .dll files and move them
+      cd cores
+      Move-Item -Path ".\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
+      cd ..
 
 #Build the package
 - task: VSBuild@1
