@@ -25,6 +25,8 @@ steps:
       $pfxpath = '$(build.artifactStagingDirectory)\RetroCert.pfx'
       $password = 'test'
       
+      Get-ChildItem -Recurse | ?{ $_.PSIsContainer } | Select-Object FullName
+      
       Add-Type -AssemblyName System.Security
       $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
       $cert.Import($pfxpath, $password, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]"PersistKeySet")
