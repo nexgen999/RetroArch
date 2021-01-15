@@ -3,11 +3,12 @@
 # Add steps that test and distribute an app, save build artifacts, and more:
 # https://aka.ms/yaml
 
+- job: Windows
+  pool:
+    vmImage: 'windows-latest'
+
 trigger:
 - main
-
-pool:
-  name: 'Azure Pipelines'
 
 variables:
   solution: '**/RetroArch-msvc2017-UWP.sln'
