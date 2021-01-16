@@ -3696,7 +3696,7 @@ static unsigned menu_displaylist_parse_content_information(
    bool content_loaded                 = false;
    bool playlist_valid                 = false;
    unsigned count                      = 0;
-   int n                               = 0;
+   size_t n                            = 0;
    char core_name[PATH_MAX_LENGTH];
    char tmp[8192];
 
@@ -7958,7 +7958,6 @@ unsigned menu_displaylist_build_list(
 #ifdef HAVE_SCREENSHOTS
             bool notification_show_screenshot = settings->bools.notification_show_screenshot;
 #endif
-            bool notification_show_refresh_rate = settings->bools.notification_show_refresh_rate;
 #endif
             menu_displaylist_build_info_selective_t build_list[] = {
                {MENU_ENUM_LABEL_FPS_SHOW,                                PARSE_ONLY_BOOL,  true },

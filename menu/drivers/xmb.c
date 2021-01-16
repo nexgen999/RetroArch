@@ -3834,11 +3834,11 @@ static int xmb_menu_entry_action(
 static void xmb_render(void *data, 
       unsigned width, unsigned height, bool is_idle)
 {
-   size_t i;
+   unsigned i;
    float scale_factor;
    xmb_handle_t *xmb        = (xmb_handle_t*)data;
    settings_t *settings     = config_get_ptr();
-   unsigned      end        = (unsigned)menu_entries_get_size();
+   size_t      end          = menu_entries_get_size();
    gfx_display_t *p_disp    = disp_get_ptr();
    gfx_animation_t *p_anim  = anim_get_ptr();
 
@@ -3883,7 +3883,7 @@ static void xmb_render(void *data,
       if ((pointer_x > margin_left) && (pointer_x < margin_right))
       {
          unsigned first = 0;
-         unsigned last = end;
+         unsigned last  = (unsigned)end;
 
          if (height)
             xmb_calculate_visible_range(xmb, height,
@@ -3891,17 +3891,12 @@ static void xmb_render(void *data,
 
          for (i = first; i <= last; i++)
          {
-            float entry_size      = (i == selection) ?
+            float entry_size      = (i == (unsigned)selection) ?
                   xmb->icon_spacing_vertical * xmb->active_item_factor : xmb->icon_spacing_vertical;
             float half_entry_size = entry_size * 0.5f;
-            float y_curr;
-            int y1;
-            int y2;
-
-            y_curr = xmb_item_y(xmb, (int)i, selection) + xmb->margins_screen_top;
-
-            y1 = (int)((y_curr - half_entry_size) + 0.5f);
-            y2 = (int)((y_curr + half_entry_size) + 0.5f);
+            float y_curr          = xmb_item_y(xmb, (int)i, selection) + xmb->margins_screen_top;
+            int y1                = (int)((y_curr - half_entry_size) + 0.5f);
+            int y2                = (int)((y_curr + half_entry_size) + 0.5f);
 
             if ((pointer_y > y1) && (pointer_y < y2))
             {
@@ -4653,6 +4648,7 @@ static void xmb_frame(void *data, video_frame_info_t *video_info)
    bool timedate_enable                    = video_info->timedate_enable;
    bool battery_level_enable               = video_info->battery_level_enable;
    bool video_fullscreen                   = video_info->fullscreen;
+   bool mouse_grabbed                      = video_info->input_driver_grab_mouse_state;
    bool menu_mouse_enable                  = video_info->menu_mouse_enable;
    unsigned xmb_color_theme                = video_info->xmb_color_theme;
    bool libretro_running                   = video_info->libretro_running;
@@ -5286,8 +5282,8 @@ static void xmb_frame(void *data, video_frame_info_t *video_info)
    /* Cursor image */
    if (xmb->mouse_show)
    {
-      bool cursor_visible   = video_fullscreen 
-         && menu_mouse_enable;
+      bool cursor_visible = (video_fullscreen || mouse_grabbed) &&
+            menu_mouse_enable;
 
       gfx_display_set_alpha(coord_white, MIN(xmb->alpha, 1.00f));
       if (cursor_visible)
@@ -6681,8 +6677,10 @@ static int xmb_list_push(void *data, void *userdata,
    bool menu_show_dump_disc        = settings->bools.menu_show_dump_disc;
    bool menu_show_shutdown         = settings->bools.menu_show_shutdown;
    bool menu_show_reboot           = settings->bools.menu_show_reboot;
+#if !defined(IOS)
    bool menu_show_quit_retroarch   = settings->bools.menu_show_quit_retroarch;
    bool menu_show_restart_ra       = settings->bools.menu_show_restart_retroarch;
+#endif
    bool menu_show_information      = settings->bools.menu_show_information;
    bool menu_show_help             = settings->bools.menu_show_help;
    bool kiosk_mode_enable          = settings->bools.kiosk_mode_enable;
@@ -7057,8 +7055,8 @@ static int xmb_pointer_up(void *userdata,
             /* Swipe down between left and right margins:
              * move selection pointer up by 1 'page' */
             unsigned bottom_idx = (unsigned)selection + 1;
-            size_t new_idx;
-            unsigned step;
+            size_t new_idx      = 0;
+            unsigned step       = 0;
 
             /* Determine index of entry at bottom of screen
              * Note: cannot use xmb_calculate_visible_range()
@@ -7068,7 +7066,8 @@ static int xmb_pointer_up(void *userdata,
              * selection... */
             for (;;)
             {
-               float top = xmb_item_y(xmb, bottom_idx, selection) + xmb->margins_screen_top;
+               float top = xmb_item_y(xmb, bottom_idx, selection) 
+                  + xmb->margins_screen_top;
 
                if (top > height)
                {
@@ -7082,8 +7081,10 @@ static int xmb_pointer_up(void *userdata,
                bottom_idx++;
             }
 
-            step     = (bottom_idx >= selection) ? bottom_idx - selection : 0;
-            new_idx  = (selection  > step)       ? selection - step       : 0;
+            if (bottom_idx >= selection)
+               step     = bottom_idx - selection;
+            if (selection > step)
+               new_idx  = selection - step;
 
             if (new_idx > 0)
             {
