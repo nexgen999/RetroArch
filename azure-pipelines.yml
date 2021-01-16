@@ -16,12 +16,13 @@ variables:
   appxPackageDir: '$(build.artifactStagingDirectory)\AppxPackages\\'
   pfxpath: '$(build.artifactStagingDirectory)\RetroCert.pfx'
 
-#Import certificate to the VM
+#Pre-build steps
 steps:
 - task: PowerShell@2
   inputs:
     targetType: 'inline'
     script: |
+      #Import the certificate included in the repo
       Write-Host "Import Certificate" 
       $pfxpath = 'D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\RetroCert.pfx'
       $password = 'test'
@@ -38,7 +39,7 @@ steps:
     
       #Get .dll files and move them
       Move-Item -Path ".\RetroArch-Redist\other\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
-      Move-Item -Path ".\RetroArch-Redist\core\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
+      Move-Item -Path ".\RetroArch-Redist\cores\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
 
 #Build the package
 - task: VSBuild@1
