@@ -23,9 +23,6 @@
 
 #include "../../../verbosity.h"
 
-#include "../../../input/drivers/cocoa_input.h"
-#include "../../../retroarch.h"
-
 #ifdef HAVE_COCOATOUCH
 #import "GCDWebUploader.h"
 #import "WebServer.h"
@@ -45,7 +42,7 @@ void *glkitview_init(void);
 
 @implementation CocoaView
 
-#if TARGET_OS_OSX
+#if defined(OSX)
 #ifdef HAVE_COCOA_METAL
 - (BOOL)layer:(CALayer *)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow *)window { return YES; }
 #endif
@@ -67,7 +64,7 @@ void *glkitview_init(void);
 {
    self = [super init];
 
-#if TARGET_OS_OSX
+#if defined(OSX)
    [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
    NSArray *array = [NSArray arrayWithObjects:NSColorPboardType, NSFilenamesPboardType, nil];
    [self registerForDraggedTypes:array];
@@ -84,7 +81,7 @@ void *glkitview_init(void);
 #endif
 #endif
     
-#if TARGET_OS_OSX
+#if defined(OSX)
     video_driver_display_type_set(RARCH_DISPLAY_OSX);
     video_driver_display_set(0);
     video_driver_display_userdata_set((uintptr_t)self);
@@ -98,7 +95,7 @@ void *glkitview_init(void);
    return self;
 }
 
-#if TARGET_OS_OSX
+#if defined(OSX)
 - (void)setFrame:(NSRect)frameRect
 {
    [super setFrame:frameRect];
@@ -203,7 +200,7 @@ void *glkitview_init(void);
 
 - (void)viewWillLayoutSubviews
 {
-   float width       = 0.0f, height = 0.0f, tenpctw, tenpcth;
+   float width       = 0.0f, height = 0.0f;
    RAScreen *screen  = (BRIDGE RAScreen*)get_chosen_screen();
    UIInterfaceOrientation orientation = self.interfaceOrientation;
    CGRect screenSize = [screen bounds];
@@ -224,9 +221,6 @@ void *glkitview_init(void);
          ? CGRectGetHeight(screenSize) 
          : CGRectGetWidth(screenSize);
    }
-
-   tenpctw        = width  / 10.0f;
-   tenpcth        = height / 10.0f;
 
    [self adjustViewFrameForSafeArea];
 }
