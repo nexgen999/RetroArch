@@ -17,6 +17,7 @@
 #import <AvailabilityMacros.h>
 #include <sys/stat.h>
 #include "cocoa_common.h"
+#include "apple_platform.h"
 #include "../ui_cocoa.h"
 
 #include <retro_assert.h>
@@ -33,8 +34,7 @@
 
 static CocoaView* g_instance;
 
-/* forward declarations */
-void cocoa_gl_gfx_ctx_update(void);
+
 
 #ifdef HAVE_COCOATOUCH
 void *glkitview_init(void);
@@ -104,8 +104,11 @@ void *glkitview_init(void);
 - (void)setFrame:(NSRect)frameRect
 {
    [super setFrame:frameRect];
-
+/* forward declarations */
+#if defined(HAVE_OPENGL)
+   void cocoa_gl_gfx_ctx_update(void);
    cocoa_gl_gfx_ctx_update();
+#endif
 }
 
 /* Stop the annoying sound when pressing a key. */
