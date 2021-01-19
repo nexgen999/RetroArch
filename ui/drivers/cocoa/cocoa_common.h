@@ -44,6 +44,8 @@
 #include <AppKit/AppKit.h>
 #endif
 
+#include "../../../retroarch.h"
+
 typedef enum apple_view_type
 {
    APPLE_VIEW_TYPE_NONE = 0,
@@ -107,6 +109,21 @@ void *nsview_get_ptr(void);
 
 void nsview_set_ptr(CocoaView *ptr);
 
-void *get_chosen_screen(void);
+bool cocoa_has_focus(void *data);
+
+void cocoa_show_mouse(void *data, bool state);
+
+void *cocoa_screen_get_chosen(void);
+
+#ifdef OSX
+float cocoa_screen_get_backing_scale_factor(void);
+void cocoa_update_title(void *data);
+#else
+float cocoa_screen_get_native_scale(void);
+#endif
+
+bool cocoa_get_metrics(
+      void *data, enum display_metric_types type,
+      float *value);
 
 #endif
