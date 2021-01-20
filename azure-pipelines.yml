@@ -15,6 +15,10 @@ variables:
   buildConfiguration: 'Release'
   appxPackageDir: '$(build.artifactStagingDirectory)\AppxPackages\\'
   pfxpath: '$(build.artifactStagingDirectory)\RetroCert.pfx'
+  major: 1
+  minor: 0
+  build: $(Build.BuildId)
+  version:  $[counter(variables['major'], 0)]
 
 #Pre-build steps
 steps:
@@ -40,6 +44,14 @@ steps:
       #Get .dll files and move them
       Move-Item -Path ".\RetroArch-Redist\other\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
       Move-Item -Path ".\RetroArch-Redist\cores\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
+
+#Auto-increment version number for store upload
+steps:
+- task: bleddynrichards.Assembly-Info-Task.Assembly-Info-Task.Assembly-Info-NetFramework@2
+  displayName: 'Set Assembly Manifest Data'
+  inputs:
+    VersionNumber: '$(major).$(minor).$(build).$(version)'
+    FileVersionNumber: '$(major).$(minor).$(build).$(version)'
 
 #Build the package
 - task: VSBuild@1
