@@ -1,23 +1,35 @@
 #!/bin/sh
+# app stuff
+
+rm -rf RetroArch.app
+
 mkdir -p RetroArch.app/Contents/MacOS
 cp -r pkg/apple/OSX/* RetroArch.app/Contents
 cp retroarch RetroArch.app/Contents/MacOS
- 
-gsed -i -e 's/\${EXECUTABLE_NAME}/RetroArch/' RetroArch.app/Contents/Info.plist
-gsed -i -e 's/\${PRODUCT_BUNDLE_IDENTIFIER}/com.libretro.RetroArch/' RetroArch.app/Contents/Info.plist
-gsed -i -e 's/\${PRODUCT_NAME}/RetroArch/' RetroArch.app/Contents/Info.plist
-gsed -i -e 's/\${MACOSX_DEPLOYMENT_TARGET}/10.13/' RetroArch.app/Contents/Info.plist
- 
-mkdir -p RetroArch.app/Contents/Resources/retroarch.iconset/
- 
-sips -z 16 16   pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_16x16.png
-sips -z 32 32   pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_16x16@2x.png
-sips -z 32 32   pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_32x32.png
-sips -z 64 64   pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_32x32@2x.png
-sips -z 128 128 pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_128x128.png
-sips -z 256 256 pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_128x128@2x.png
-sips -z 256 256 pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_256x256.png
-sips -z 512 512 pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_256x256@2x.png
-sips -z 512 512 pkg/apple/Resources/retroarch_logo.png --out RetroArch.app/Contents/Resources/retroarch.iconset/icon_512x512.png
- 
-iconutil -c icns -o RetroArch.app/Contents/Resources/retroarch.icns RetroArch.app/Contents/Resources/retroarch.iconset
+
+sed -i'.bak' 's/\${EXECUTABLE_NAME}/RetroArch/' RetroArch.app/Contents/Info.plist
+sed -i'.bak' 's/\$(PRODUCT_BUNDLE_IDENTIFIER)/com.libretro.RetroArch/' RetroArch.app/Contents/Info.plist
+sed -i'.bak' 's/\${PRODUCT_NAME}/RetroArch/' RetroArch.app/Contents/Info.plist
+sed -i'.bak' 's/\${MACOSX_DEPLOYMENT_TARGET}/10.13/' RetroArch.app/Contents/Info.plist
+
+cp media/retroarch.icns RetroArch.app/Contents/Resources/
+
+# dmg stuff
+
+umount wc
+rm -rf RetroArch.dmg wc empty.dmg
+
+mkdir -p template
+hdiutil create -fs HFSX -layout SPUD -size 200m empty.dmg -srcfolder template -format UDRW -volname RetroArch -quiet
+rmdir template
+
+mkdir -p wc
+hdiutil attach empty.dmg -noautoopen -quiet -mountpoint wc
+rm -rf wc/RetroArch.app
+ditto -rsrc RetroArch.app wc/RetroArch.app
+ln -s /Applications wc/Applications
+WC_DEV=`hdiutil info | grep wc | grep "Apple_HFS" | awk '{print $1}'` && hdiutil detach $WC_DEV -quiet -force
+hdiutil convert empty.dmg -quiet -format UDZO -imagekey zlib-level=9 -o RetroArch.dmg
+
+umount wc
+rm -rf wc empty.dmg
