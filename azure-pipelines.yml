@@ -80,7 +80,7 @@ steps:
   displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
   inputs:
     SourceFolder: 'D:\a\1\s\pkg\msvc-uwp\x64\Release\RetroArch-msvc2017-UWP\Upload'
-    Contents: '*\*.msixupload'
+    Contents: '**\*.msixupload'
     TargetFolder: '$(build.artifactstagingdirectory)'
 
 #Keep the package instead of deleting it
