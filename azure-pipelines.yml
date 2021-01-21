@@ -12,7 +12,7 @@ pool:
 variables:
 - group: uwp-pipeline
 - name: solution
-  value '**/RetroArch-msvc2017-UWP.sln'
+  value: '**/RetroArch-msvc2017-UWP.sln'
 - name: buildPlatform
   value: 'x64'
 - name: buildConfiguration
