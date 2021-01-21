@@ -16,12 +16,12 @@ variables:
   appxPackageDir: '$(build.artifactStagingDirectory)\AppxPackages\\'
   pfxpath: '$(build.artifactStagingDirectory)\RetroCert.pfx'
   build: '$(Build.BuildId)'
-- name: MajorVersion
-  value: 20
-- name: MinorVersion
-  value: 1
-- name: customBuildNumber
-  value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)'
+#- name: MajorVersion
+#  value: 20
+#- name: MinorVersion
+#  value: 1
+#- name: customBuildNumber
+#  value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)'
 
 steps:
 - task: PowerShell@2
