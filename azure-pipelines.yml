@@ -15,17 +15,20 @@ variables:
   buildConfiguration: 'Release'
   appxPackageDir: '$(build.artifactStagingDirectory)\AppxPackages\\'
   pfxpath: '$(build.artifactStagingDirectory)\RetroCert.pfx'
-  major: 1
-  minor: 0
   build: $(Build.BuildId)
-  version:  $[counter(variables['major'], 0)]
+  - name: MajorVersion
+   value: 20
+  - name: MinorVersion
+   value: 1
+  - name: customBuildNumber
+   value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)' #auto-increment version number
 
-#Pre-build steps
 steps:
 - task: PowerShell@2
   inputs:
     targetType: 'inline'
     script: |
+    
       #Import the certificate included in the repo
       Write-Host "Import Certificate" 
       $pfxpath = 'D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\RetroCert.pfx'
@@ -44,13 +47,15 @@ steps:
       #Get .dll files and move them
       Move-Item -Path ".\RetroArch-Redist\other\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
       Move-Item -Path ".\RetroArch-Redist\cores\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
-
-#Auto-increment version number for store upload
-- task: bleddynrichards.Assembly-Info-Task.Assembly-Info-Task.Assembly-Info-NetFramework@2
-  displayName: 'Set Assembly Manifest Data'
+      
+#Auto-increment the build number for store submission      
+- task: VersionAPPX@2
   inputs:
-    VersionNumber: '$(major).$(minor).$(build).$(version)'
-    FileVersionNumber: '$(major).$(minor).$(build).$(version)'
+    Path: 'D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\'
+    VersionNumber: '$(Build.BuildNumber)'
+    InjectVersion: False
+    VersionRegex: '(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])(\.(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])){3}'
+    OutputVersion: 'OutputedVersion'
 
 #Build the package
 - task: VSBuild@1
