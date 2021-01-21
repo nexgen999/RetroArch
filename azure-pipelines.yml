@@ -10,18 +10,25 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/RetroArch-msvc2017-UWP.sln'
-  buildPlatform: 'x64'
-  buildConfiguration: 'Release'
-  appxPackageDir: '$(build.artifactStagingDirectory)\AppxPackages\\'
-  pfxpath: '$(build.artifactStagingDirectory)\RetroCert.pfx'
-  build: '$(Build.BuildId)'
-  - name: MajorVersion
-    value: '20'
-  - name: MinorVersion
-    value: '1'
-  - name: 'customBuildNumber'
-    value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)'
+- group: uwp-pipeline
+- name: solution
+  value '**/RetroArch-msvc2017-UWP.sln'
+- name: buildPlatform
+  value: 'x64'
+- name: buildConfiguration
+  value: 'Release'
+- name appxPackageDir:
+  value: '$(build.artifactStagingDirectory)\AppxPackages\\'
+- name: pfxpath 
+  value: '$(build.artifactStagingDirectory)\RetroCert.pfx'
+- name: build  
+  value: '$(Build.BuildId)'
+- name: MajorVersion
+  value: '20'
+- name: MinorVersion
+  value: '1'
+- name: 'customBuildNumber'
+  value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)'
 
 
 steps:
