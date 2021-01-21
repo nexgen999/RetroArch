@@ -17,7 +17,7 @@ variables:
   value: 'x64'
 - name: buildConfiguration
   value: 'Release'
-- name appxPackageDir:
+- name: appxPackageDir
   value: '$(build.artifactStagingDirectory)\AppxPackages\\'
 - name: pfxpath 
   value: '$(build.artifactStagingDirectory)\RetroCert.pfx'
