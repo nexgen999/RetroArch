@@ -79,7 +79,7 @@ steps:
 - task: CopyFiles@2
   displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
   inputs:
-    SourceFolder: 'D:\a\1\s\pkg\msvc-uwp\x64\Release\RetroArch-msvc2017-UWP\Upload\AppxPackages\'
+    SourceFolder: 'D:\a\1\s\pkg\msvc-uwp\x64\Release\RetroArch-msvc2017-UWP\Upload'
     Contents: '*'
     TargetFolder: '$(build.artifactstagingdirectory)'
 
