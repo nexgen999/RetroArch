@@ -88,3 +88,12 @@ steps:
   displayName: 'RetroRev store'
   inputs:
     PathtoPublish: '$(build.artifactstagingdirectory)'
+
+#Zip package files for store upload
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(build.artifactstagingdirectory)'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    replaceExistingArchive: true
