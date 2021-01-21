@@ -52,11 +52,11 @@ steps:
       $store.Close()
 
       #Add .dll files to build
-      git clone https://github.com/Nun-z/RetroArch-Redist.git
+      #git clone https://github.com/Nun-z/RetroArch-Redist.git
     
       #Get .dll files and move them
-      Move-Item -Path ".\RetroArch-Redist\other\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
-      Move-Item -Path ".\RetroArch-Redist\cores\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
+      #Move-Item -Path ".\RetroArch-Redist\other\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64
+      #Move-Item -Path ".\RetroArch-Redist\cores\*.dll" -Destination D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\cores\x64\cores
       
 #Auto-increment the build number for store submission      
 - task: VersionAPPX@2
@@ -79,8 +79,8 @@ steps:
 - task: CopyFiles@2
   displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
   inputs:
-    SourceFolder: 'D:\a\1\s\pkg\msvc-uwp\x64\Release\RetroArch-msvc2017-UWP\Upload\'
-    Contents: '**\*.msixupload'
+    SourceFolder: 'D:\a\1\s\pkg\msvc-uwp\x64\Release\RetroArch-msvc2017-UWP\Upload\AppxPackages\'
+    Contents: '*'
     TargetFolder: '$(build.artifactstagingdirectory)'
 
 #Keep the package instead of deleting it
