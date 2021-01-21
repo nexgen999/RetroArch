@@ -97,3 +97,11 @@ steps:
     archiveType: 'zip'
     archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
     replaceExistingArchive: true
+
+#Send package to Microsoft Store
+- task: store-publish@0
+  inputs:
+    appId: 'AppID'
+    packagePath: 'PackageFile'
+    force: false
+    skipPolling: false
