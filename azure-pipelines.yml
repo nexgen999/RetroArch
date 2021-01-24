@@ -37,7 +37,7 @@ steps:
   name: mySecureFile
   displayName: 'Get the pfx file certificate'
   inputs:
-    secureFile: '$(signingCert.secureFilePath)'
+    secureFile: 'RetroCert.pfx'
 
 - task: PowerShell@2
   inputs:
