@@ -22,7 +22,7 @@ variables:
 - name: appxPackageDir
   value: '$(build.artifactStagingDirectory)\AppxPackages\\'
 - name: pfxpath 
-  value: '$(build.artifactStagingDirectory)\RetroCert.pfx'
+  value: '.\RetroCert.pfx'
 - name: build  
   value: '$(Build.BuildId)'
 - name: MajorVersion
