@@ -1,4 +1,4 @@
-This uses RetroArch-Redist, another repository, to add the .dll files to Azure builds for use with the Microsoft Store.
+This uses RetroArch-Redist, another repository, to add the .dll files to Azure builds for use with the Microsoft Store.  A package for upload to the Microsoft Store is automatically created once a week.
 
 [![Build Status](https://travis-ci.org/libretro/RetroArch.svg?branch=master)](https://travis-ci.org/libretro/RetroArch)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/8936/badge.svg)](https://scan.coverity.com/projects/retroarch)
