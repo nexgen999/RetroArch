@@ -32,8 +32,13 @@ variables:
 - name: 'customBuildNumber'
   value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)'
 
-
 steps:
+- task: DownloadSecureFile@1
+  name: mySecureFile
+  displayName: 'Get the pfx file certificate'
+  inputs:
+    secureFile: '$(signingCert.secureFilePath)'
+
 - task: PowerShell@2
   inputs:
     targetType: 'inline'
@@ -41,7 +46,7 @@ steps:
     
       #Import the certificate included in the repo
       Write-Host "Import Certificate" 
-      $pfxpath = 'D:\a\1\s\pkg\msvc-uwp\RetroArch-msvc2017-UWP\RetroCert.pfx'
+      $pfxpath = '.\RetroCert.pfx'
       $password = 'test'
       Add-Type -AssemblyName System.Security
       $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
