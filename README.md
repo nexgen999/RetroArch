@@ -1,8 +1,12 @@
 This uses RetroArch-Redist, another repository, to add the .dll files to Azure builds for use with the Microsoft Store.  A package for upload to the Microsoft Store is automatically created once a week.
 
-[![Build Status](https://travis-ci.org/libretro/RetroArch.svg?branch=master)](https://travis-ci.org/libretro/RetroArch)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/8936/badge.svg)](https://scan.coverity.com/projects/retroarch)
-[![Crowdin](https://badges.crowdin.net/retroarch/localized.svg)](https://crowdin.com/project/retroarch)
+Generate Microsoft Store package for Xbox: 
+
+[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_apis/build/status/RA%20Generate%20Store%20Package?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_build/latest?definitionId=14&branchName=main)
+
+Generate dev mode package for Xbox:  
+
+[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_apis/build/status/RA%20Generate%20Dev%20Mode%20Package?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_build/latest?definitionId=16&branchName=main)
 
 # RetroArch
 
