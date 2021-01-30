@@ -8,6 +8,10 @@ Generate dev mode package for Xbox:
 
 [![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_apis/build/status/RA%20Generate%20Dev%20Mode%20Package?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_build/latest?definitionId=16&branchName=main)
 
+CI on commit to repo:
+
+[![Build Status](https://dev.azure.com/Nun-z/RetroArch/_apis/build/status/Nun-z.RetroArch?branchName=master)](https://dev.azure.com/Nun-z/RetroArch/_build/latest?definitionId=11&branchName=master)
+
 # RetroArch
 
 RetroArch is the reference frontend for the libretro API.
