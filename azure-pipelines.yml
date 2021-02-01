@@ -18,7 +18,7 @@ variables:
 - name: buildPlatform
   value: 'x64'
 - name: buildConfiguration
-  value: 'Release'
+  value: 'ReleaseANGLE'
 - name: appxPackageDir
   value: '$(build.artifactStagingDirectory)\AppxPackages\\'
 - name: pfxpath 
