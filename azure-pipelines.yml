@@ -22,7 +22,7 @@ variables:
 - name: appxPackageDir
   value: '$(build.artifactStagingDirectory)\AppxPackages\\'
 - name: pfxpath 
-  value: '$(build.SourcesDirectory)\pkg\msvc-uwp\RetroCert.pfx'
+  value: '$(build.SourcesDirectory)\RetroCert.pfx'
 - name: build  
   value: '$(Build.BuildId)'
 - name: MajorVersion
@@ -33,11 +33,11 @@ variables:
   value: '$(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear)$(rev:.r)'
 
 steps:
-- task: DownloadSecureFile@1
-  name: mySecureFile
-  displayName: 'Get the pfx file certificate'
-  inputs:
-    secureFile: 'RetroCert.pfx'
+#- task: DownloadSecureFile@1
+  #name: mySecureFile
+  #displayName: 'Get the pfx file certificate'
+  #inputs:
+    #secureFile: 'RetroCert.pfx'
 
 - task: PowerShell@2
   inputs:
