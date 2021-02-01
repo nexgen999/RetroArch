@@ -440,10 +440,23 @@ static void *sdl2_gfx_init(const video_info_t *video,
 
 #if defined(_WIN32)
    sdl2_set_handles(vid->window, RARCH_DISPLAY_WIN32);
-#elif defined(HAVE_X11)
-   sdl2_set_handles(vid->window, RARCH_DISPLAY_X11);
 #elif defined(HAVE_COCOA)
    sdl2_set_handles(vid->window, RARCH_DISPLAY_OSX);
+#else
+#if defined(HAVE_X11) || defined(HAVE_WAYLAND)
+   const char *video_driver = SDL_GetCurrentVideoDriver();
+#endif
+#ifdef HAVE_X11
+   if (strcmp(video_driver, "x11") == 0)
+      sdl2_set_handles(vid->window, RARCH_DISPLAY_X11);
+   else
+#endif
+#ifdef HAVE_WAYLAND
+   if (strcmp(video_driver, "wayland") == 0)
+      sdl2_set_handles(vid->window, RARCH_DISPLAY_WAYLAND);
+   else
+#endif
+      sdl2_set_handles(vid->window, RARCH_DISPLAY_NONE);
 #endif
 
    sdl_refresh_viewport(vid);
