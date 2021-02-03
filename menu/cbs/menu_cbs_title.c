@@ -287,12 +287,19 @@ static int action_get_title_dropdown_item(
                      path, label, menu_type, s, len);
             default:
                {
-                  const char *title = msg_hash_to_str(enum_idx);
+                  /* Analog to Digital Type -submenus do not have labels */
+                  if ((enum_idx > MENU_ENUM_LABEL_INPUT_PLAYER_ANALOG_DPAD_MODE) &&
+                      (enum_idx < MENU_ENUM_LABEL_INPUT_PLAYER_ANALOG_DPAD_MODE_LAST))
+                     enum_idx = MENU_ENUM_LABEL_VALUE_INPUT_ADC_TYPE;
 
-                  if (s && !string_is_empty(title))
                   {
-                     SANITIZE_TO_STRING(s, title, len);
-                     return 1;
+                     const char *title = msg_hash_to_str(enum_idx);
+
+                     if (s && !string_is_empty(title))
+                     {
+                        SANITIZE_TO_STRING(s, title, len);
+                        return 1;
+                     }
                   }
                }
                break;
@@ -474,7 +481,7 @@ static int action_get_title_dropdown_input_description_common(
             sizeof(input_label));
 
    /* Build title string */
-   snprintf(s, len, "%s #%u -  %s",
+   snprintf(s, len, "%s %u - %s",
          msg_hash_to_str(MENU_ENUM_LABEL_VALUE_PORT),
          port + 1,
          input_label);
