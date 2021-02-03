@@ -217,6 +217,7 @@ static void rcheevos_get_user_agent(
       {
          frontend->get_os(tmp, sizeof(tmp), &major, &minor);
          ptr += sprintf(ptr, " (%s %d.%d)", tmp, major, minor);
+         (void)ptr;
       }
    }
 
@@ -1191,7 +1192,7 @@ static void rcheevos_append_menu_achievement(
 
    menu_entries_append_enum(info->list, cheevo->title,
       cheevo->description, MENU_ENUM_LABEL_CHEEVOS_LOCKED_ENTRY,
-      MENU_SETTINGS_CHEEVOS_START + idx, 0, 0);
+      (unsigned)(MENU_SETTINGS_CHEEVOS_START + idx), 0, 0);
 
    if (!cheevo->memaddr)
       badge_grayscale = true;  /* unsupported */
@@ -1201,7 +1202,7 @@ static void rcheevos_append_menu_achievement(
    else
       badge_grayscale = true;  /* locked */
 
-   cheevos_set_menu_badge(idx, cheevo->badge, badge_grayscale);
+   cheevos_set_menu_badge((int)idx, cheevo->badge, badge_grayscale);
 }
 #endif
 
