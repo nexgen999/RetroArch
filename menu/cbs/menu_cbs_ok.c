@@ -113,6 +113,7 @@ enum
 #ifdef HAVE_VIDEO_LAYOUT
    ACTION_OK_SET_PATH_VIDEO_LAYOUT,
 #endif
+   ACTION_OK_SET_PATH_VIDEO_FONT,
    ACTION_OK_SET_DIRECTORY,
    ACTION_OK_SHOW_WIMP,
    ACTION_OK_LOAD_CHEAT_FILE_APPEND,
@@ -282,6 +283,8 @@ static enum msg_hash_enums action_ok_dl_to_enum(unsigned lbl)
          return MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_DISK_INDEX;
       case ACTION_OK_DL_DROPDOWN_BOX_LIST_INPUT_DEVICE_TYPE:
          return MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_TYPE;
+      case ACTION_OK_DL_DROPDOWN_BOX_LIST_INPUT_DEVICE_INDEX:
+         return MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_INDEX;
       case ACTION_OK_DL_DROPDOWN_BOX_LIST_INPUT_DESCRIPTION:
          return MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DESCRIPTION;
       case ACTION_OK_DL_DROPDOWN_BOX_LIST_INPUT_DESCRIPTION_KBD:
@@ -678,6 +681,15 @@ int generic_action_ok_displaylist_push(const char *path,
          info_label         = msg_hash_to_str(
                MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_TYPE);
          info.enum_idx      = MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_TYPE;
+         dl_type            = DISPLAYLIST_GENERIC;
+         break;
+      case ACTION_OK_DL_DROPDOWN_BOX_LIST_INPUT_DEVICE_INDEX:
+         info.type          = type;
+         info.directory_ptr = idx;
+         info_path          = path;
+         info_label         = msg_hash_to_str(
+               MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_INDEX);
+         info.enum_idx      = MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_INDEX;
          dl_type            = DISPLAYLIST_GENERIC;
          break;
       case ACTION_OK_DL_DROPDOWN_BOX_LIST_INPUT_DESCRIPTION:
@@ -1901,6 +1913,10 @@ static int generic_action_ok(const char *path,
          ret        = set_path_generic(menu_label, action_path);
          break;
 #endif
+      case ACTION_OK_SET_PATH_VIDEO_FONT:
+         flush_char = msg_hash_to_str(MENU_ENUM_LABEL_DEFERRED_ONSCREEN_NOTIFICATIONS_SETTINGS_LIST);
+         ret        = set_path_generic(menu_label, action_path);
+         break;
       case ACTION_OK_SET_MANUAL_CONTENT_SCAN_DAT_FILE:
          flush_char = msg_hash_to_str(MENU_ENUM_LABEL_DEFERRED_MANUAL_CONTENT_SCAN_LIST);
          ret        = set_path_generic(menu_label, action_path);
@@ -1959,6 +1975,7 @@ DEFAULT_ACTION_OK_SET(action_ok_set_path_overlay,     ACTION_OK_SET_PATH_OVERLAY
 #ifdef HAVE_VIDEO_LAYOUT
 DEFAULT_ACTION_OK_SET(action_ok_set_path_video_layout,ACTION_OK_SET_PATH_VIDEO_LAYOUT, MSG_UNKNOWN)
 #endif
+DEFAULT_ACTION_OK_SET(action_ok_set_path_video_font,  ACTION_OK_SET_PATH_VIDEO_FONT,   MSG_UNKNOWN)
 DEFAULT_ACTION_OK_SET(action_ok_set_path,             ACTION_OK_SET_PATH,              MSG_UNKNOWN)
 DEFAULT_ACTION_OK_SET(action_ok_load_core,            ACTION_OK_LOAD_CORE,             MSG_UNKNOWN)
 DEFAULT_ACTION_OK_SET(action_ok_config_load,          ACTION_OK_LOAD_CONFIG_FILE,      MSG_UNKNOWN)
@@ -2643,10 +2660,10 @@ static int action_ok_menu_wallpaper(const char *path,
    return action_ok_lookup_setting(path, label, type, idx, entry_idx);
 }
 
-static int action_ok_menu_font(const char *path,
+static int action_ok_video_font(const char *path,
       const char *label, unsigned type, size_t idx, size_t entry_idx)
 {
-   filebrowser_set_type(FILEBROWSER_SELECT_FONT);
+   filebrowser_set_type(FILEBROWSER_SELECT_VIDEO_FONT);
    return action_ok_lookup_setting(path, label, type, idx, entry_idx);
 }
 
@@ -6272,10 +6289,11 @@ static int action_ok_push_dropdown_item_input_device_type(const char *path,
    unsigned device              = 0;
 
    const char *menu_path        = NULL;
+   enum msg_hash_enums enum_idx;
+   rarch_setting_t     *setting;
    menu_entries_get_last_stack(&menu_path, NULL, NULL, NULL, NULL);
-
-   enum msg_hash_enums enum_idx = (enum msg_hash_enums)atoi(menu_path);
-   rarch_setting_t     *setting = menu_setting_find_enum(enum_idx);
+   enum_idx = (enum msg_hash_enums)atoi(menu_path);
+   setting  = menu_setting_find_enum(enum_idx);
 
    if (!setting)
       return menu_cbs_exit();
@@ -6289,6 +6307,26 @@ static int action_ok_push_dropdown_item_input_device_type(const char *path,
    pad.device = device;
 
    core_set_controller_port_device(&pad);
+
+   return action_cancel_pop_default(NULL, NULL, 0, 0);
+}
+
+static int action_ok_push_dropdown_item_input_device_index(const char *path,
+      const char *label, unsigned type, size_t idx, size_t entry_idx)
+{
+   settings_t *settings         = config_get_ptr();
+
+   const char *menu_path        = NULL;
+   enum msg_hash_enums enum_idx;
+   rarch_setting_t     *setting;
+   menu_entries_get_last_stack(&menu_path, NULL, NULL, NULL, NULL);
+   enum_idx = (enum msg_hash_enums)atoi(menu_path);
+   setting  = menu_setting_find_enum(enum_idx);
+
+   if (!setting)
+      return menu_cbs_exit();
+
+   settings->uints.input_joypad_map[setting->index_offset] = entry_idx;
 
    return action_cancel_pop_default(NULL, NULL, 0, 0);
 }
@@ -7363,7 +7401,7 @@ static int menu_cbs_init_bind_ok_compare_label(menu_file_list_cbs_t *cbs,
          {MENU_ENUM_LABEL_SWITCH_CPU_PROFILE,                  action_ok_push_default},
 #endif
          {MENU_ENUM_LABEL_MENU_WALLPAPER,                      action_ok_menu_wallpaper},
-         {MENU_ENUM_LABEL_VIDEO_FONT_PATH,                     action_ok_menu_font},
+         {MENU_ENUM_LABEL_VIDEO_FONT_PATH,                     action_ok_video_font},
          {MENU_ENUM_LABEL_GOTO_FAVORITES,                      action_ok_goto_favorites},
          {MENU_ENUM_LABEL_GOTO_MUSIC,                          action_ok_goto_music},
          {MENU_ENUM_LABEL_GOTO_IMAGES,                         action_ok_goto_images},
@@ -7802,6 +7840,9 @@ static int menu_cbs_init_bind_ok_compare_type(menu_file_list_cbs_t *cbs,
          case MENU_SETTING_DROPDOWN_ITEM_INPUT_DEVICE_TYPE:
             BIND_ACTION_OK(cbs, action_ok_push_dropdown_item_input_device_type);
             break;
+         case MENU_SETTING_DROPDOWN_ITEM_INPUT_DEVICE_INDEX:
+            BIND_ACTION_OK(cbs, action_ok_push_dropdown_item_input_device_index);
+            break;
          case MENU_SETTING_DROPDOWN_ITEM_INPUT_DESCRIPTION:
             BIND_ACTION_OK(cbs, action_ok_push_dropdown_item_input_description);
             break;
@@ -8034,6 +8075,9 @@ static int menu_cbs_init_bind_ok_compare_type(menu_file_list_cbs_t *cbs,
             break;
          case FILE_TYPE_FONT:
             BIND_ACTION_OK(cbs, action_ok_set_path);
+            break;
+         case FILE_TYPE_VIDEO_FONT:
+            BIND_ACTION_OK(cbs, action_ok_set_path_video_font);
             break;
          case FILE_TYPE_OVERLAY:
             BIND_ACTION_OK(cbs, action_ok_set_path_overlay);

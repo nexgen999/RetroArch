@@ -152,7 +152,7 @@ GENERIC_DEFERRED_PUSH(deferred_push_input_overlay,                  DISPLAYLIST_
 #ifdef HAVE_VIDEO_LAYOUT
 GENERIC_DEFERRED_PUSH(deferred_push_video_layout_path,              DISPLAYLIST_VIDEO_LAYOUT_PATH)
 #endif
-GENERIC_DEFERRED_PUSH(deferred_push_video_font_path,                DISPLAYLIST_FONTS)
+GENERIC_DEFERRED_PUSH(deferred_push_video_font_path,                DISPLAYLIST_VIDEO_FONTS)
 GENERIC_DEFERRED_PUSH(deferred_push_xmb_font_path,                  DISPLAYLIST_FONTS)
 GENERIC_DEFERRED_PUSH(deferred_push_content_history_path,           DISPLAYLIST_CONTENT_HISTORY)
 GENERIC_DEFERRED_PUSH(deferred_push_disc_information,               DISPLAYLIST_DISC_INFO)
@@ -651,6 +651,7 @@ GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_manual_conte
 GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_manual_content_scan_core_name, PUSH_DEFAULT, DISPLAYLIST_DROPDOWN_LIST_MANUAL_CONTENT_SCAN_CORE_NAME)
 GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_disk_index, PUSH_DEFAULT, DISPLAYLIST_DROPDOWN_LIST_DISK_INDEX)
 GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_input_device_type, PUSH_DEFAULT, DISPLAYLIST_DROPDOWN_LIST_INPUT_DEVICE_TYPE)
+GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_input_device_index, PUSH_DEFAULT, DISPLAYLIST_DROPDOWN_LIST_INPUT_DEVICE_INDEX)
 GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_input_description, PUSH_DEFAULT, DISPLAYLIST_DROPDOWN_LIST_INPUT_DESCRIPTION)
 GENERIC_DEFERRED_PUSH_CLEAR_GENERAL(deferred_push_dropdown_box_list_input_description_kbd, PUSH_DEFAULT, DISPLAYLIST_DROPDOWN_LIST_INPUT_DESCRIPTION_KBD)
 
@@ -682,6 +683,7 @@ static int menu_cbs_init_bind_deferred_push_compare_label(
       {MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_PLAYLIST_SORT_MODE, deferred_push_dropdown_box_list_playlist_sort_mode},
       {MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_DISK_INDEX, deferred_push_dropdown_box_list_disk_index},
       {MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_TYPE, deferred_push_dropdown_box_list_input_device_type},
+      {MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DEVICE_INDEX, deferred_push_dropdown_box_list_input_device_index},
       {MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DESCRIPTION, deferred_push_dropdown_box_list_input_description},
       {MENU_ENUM_LABEL_DEFERRED_DROPDOWN_BOX_LIST_INPUT_DESCRIPTION_KBD, deferred_push_dropdown_box_list_input_description_kbd},
       {MENU_ENUM_LABEL_DEFERRED_BROWSE_URL_LIST, deferred_push_browse_url_list},
