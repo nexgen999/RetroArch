@@ -1,7 +1,7 @@
 pull_request_rules:
   - name: Automatic merge on approval
     conditions:
-      - base=master
+      - author=pull
     actions:
       merge:
         method: merge
