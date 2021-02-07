@@ -5363,11 +5363,11 @@ static int setting_action_left_mouse_index(
       return -1;
 
    if (settings->uints.input_mouse_index[setting->index_offset])
-   {
       --settings->uints.input_mouse_index[setting->index_offset];
-      settings->modified = true;
-   }
+   else
+      settings->uints.input_mouse_index[setting->index_offset] = MAX_USERS - 1;
 
+   settings->modified = true;
    return 0;
 }
 
@@ -6818,6 +6818,18 @@ static int setting_action_start_video_refresh_rate_auto(
    return 0;
 }
 
+static int setting_action_start_mouse_index(rarch_setting_t *setting)
+{
+   settings_t *settings     = config_get_ptr();
+
+   if (!setting)
+      return -1;
+
+   settings->uints.input_mouse_index[setting->index_offset] = 0;
+   settings->modified = true;
+   return 0;
+}
+
 /**
  ******* ACTION TOGGLE CALLBACK FUNCTIONS *******
 **/
@@ -6909,9 +6921,12 @@ static int setting_action_right_mouse_index(
    if (!setting)
       return -1;
 
-   ++settings->uints.input_mouse_index[setting->index_offset];
-   settings->modified = true;
+   if (settings->uints.input_mouse_index[setting->index_offset] < MAX_USERS - 1)
+      ++settings->uints.input_mouse_index[setting->index_offset];
+   else
+      settings->uints.input_mouse_index[setting->index_offset] = 0;
 
+   settings->modified = true;
    return 0;
 }
 
@@ -7985,6 +8000,28 @@ static bool setting_append_list_input_player_options(
       MENU_SETTINGS_LIST_CURRENT_ADD_ENUM_IDX_PTR(list, list_info,
             (enum msg_hash_enums)(MENU_ENUM_LABEL_INPUT_DEVICE_INDEX + user));
 
+      CONFIG_UINT_ALT(
+            list, list_info,
+            &settings->uints.input_mouse_index[user],
+            mouse_index[user],
+            label_mouse_index[user],
+            0,
+            &group_info,
+            &subgroup_info,
+            parent_group,
+            general_write_handler,
+            general_read_handler);
+      (*list)[list_info->index - 1].index         = user + 1;
+      (*list)[list_info->index - 1].index_offset  = user;
+      (*list)[list_info->index - 1].action_start  = &setting_action_start_mouse_index;
+      (*list)[list_info->index - 1].action_left   = &setting_action_left_mouse_index;
+      (*list)[list_info->index - 1].action_right  = &setting_action_right_mouse_index;
+      (*list)[list_info->index - 1].action_select = &setting_action_right_mouse_index;
+      (*list)[list_info->index - 1].action_ok     = &setting_action_ok_uint;
+      menu_settings_list_current_add_range(list, list_info, 0, MAX_USERS - 1, 1.0, true, true);
+      MENU_SETTINGS_LIST_CURRENT_ADD_ENUM_IDX_PTR(list, list_info,
+            (enum msg_hash_enums)(MENU_ENUM_LABEL_INPUT_MOUSE_INDEX + user));
+
       CONFIG_ACTION_ALT(
             list, list_info,
             key_bind_all[user],
@@ -8022,22 +8059,6 @@ static bool setting_append_list_input_player_options(
       (*list)[list_info->index - 1].action_ok      = &setting_action_ok_bind_all_save_autoconfig;
       (*list)[list_info->index - 1].action_cancel  = NULL;
 #endif
-
-      CONFIG_UINT_ALT(
-            list, list_info,
-            &settings->uints.input_mouse_index[user],
-            mouse_index[user],
-            label_mouse_index[user],
-            0,
-            &group_info,
-            &subgroup_info,
-            parent_group,
-            general_write_handler,
-            general_read_handler);
-      (*list)[list_info->index - 1].index        = user + 1;
-      (*list)[list_info->index - 1].index_offset = user;
-      (*list)[list_info->index - 1].action_left  = &setting_action_left_mouse_index;
-      (*list)[list_info->index - 1].action_right = &setting_action_right_mouse_index;
    }
 
    for (i = 0; i < RARCH_BIND_LIST_END; i ++)
@@ -12292,7 +12313,9 @@ static bool setting_append_list(
                   parent_group,
                   general_write_handler,
                   general_read_handler);
-            menu_settings_list_current_add_range(list, list_info, 1, 0, 1, true, false);
+            (*list)[list_info->index - 1].action_ok = &setting_action_ok_uint;
+            (*list)[list_info->index - 1].offset_by = 1;
+            menu_settings_list_current_add_range(list, list_info, 1, 10, 1, true, true);
             SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
 
             CONFIG_UINT(
@@ -12308,7 +12331,7 @@ static bool setting_append_list(
                   general_read_handler);
             (*list)[list_info->index - 1].action_ok = &setting_action_ok_uint;
             (*list)[list_info->index - 1].offset_by = 1;
-            menu_settings_list_current_add_range(list, list_info, 1, 0, 1, true, false);
+            menu_settings_list_current_add_range(list, list_info, 1, 10, 1, true, true);
             SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
 
             CONFIG_UINT(
@@ -12324,7 +12347,7 @@ static bool setting_append_list(
                   general_read_handler);
             (*list)[list_info->index - 1].action_ok = &setting_action_ok_uint;
             (*list)[list_info->index - 1].offset_by = 1;
-            menu_settings_list_current_add_range(list, list_info, 1, 0, 1, true, false);
+            menu_settings_list_current_add_range(list, list_info, 1, 100, 1, true, true);
             SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
 
             CONFIG_UINT(
@@ -12340,7 +12363,7 @@ static bool setting_append_list(
                   general_read_handler);
             (*list)[list_info->index - 1].action_ok = &setting_action_ok_uint;
             (*list)[list_info->index - 1].offset_by = 1;
-            menu_settings_list_current_add_range(list, list_info, 1, 0, 1, true, false);
+            menu_settings_list_current_add_range(list, list_info, 1, 100, 1, true, true);
             SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
 
             CONFIG_ACTION(
