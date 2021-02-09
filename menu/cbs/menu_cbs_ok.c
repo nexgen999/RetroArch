@@ -465,6 +465,55 @@ static enum msg_hash_enums action_ok_dl_to_enum(unsigned lbl)
    return MSG_UNKNOWN;
 }
 
+static void action_ok_get_file_browser_start_path(
+      const char *current_path, const char *default_path,
+      char *start_path, size_t start_path_len,
+      bool set_pending)
+{
+   const char *pending_selection = NULL;
+   bool current_path_valid       = false;
+
+   if (!start_path || (start_path_len < 1))
+      return;
+
+   /* Parse current path */
+   if (!string_is_empty(current_path))
+   {
+      /* Start path is the parent directory of
+       * the current path */
+      fill_pathname_parent_dir(start_path, current_path,
+            start_path_len);
+
+      /* 'Pending selection' is the basename of
+       * the current path - either a file name
+       * or a directory name */
+      pending_selection = path_basename(current_path);
+
+      /* Check if current path is valid */
+      if (path_is_directory(start_path) &&
+          !string_is_empty(pending_selection))
+         current_path_valid = true;
+   }
+
+   /* If current path is invalid, use default path */
+   if (!current_path_valid)
+   {
+      if (string_is_empty(default_path) ||
+          !path_is_directory(default_path))
+      {
+         start_path[0] = '\0';
+         return;
+      }
+
+      strlcpy(start_path, default_path, start_path_len);
+      return;
+   }
+   /* Current path is valid - set pending selection,
+    * if required */
+   else if (set_pending)
+      menu_driver_set_pending_selection(pending_selection);
+}
+
 int generic_action_ok_displaylist_push(const char *path,
       const char *new_path,
       const char *label, unsigned type, size_t idx, size_t entry_idx,
@@ -566,7 +615,7 @@ int generic_action_ok_displaylist_push(const char *path,
          dl_type            = DISPLAYLIST_GENERIC;
          break;
       case ACTION_OK_DL_DROPDOWN_BOX_LIST_SHADER_PARAMETER:
-         info.type          = MENU_SETTINGS_SHADER_PARAMETER_0 + idx;
+         info.type          = (unsigned)(MENU_SETTINGS_SHADER_PARAMETER_0 + idx);
          info.directory_ptr = idx;
          info_path          = path;
          info_label         = msg_hash_to_str(
@@ -836,22 +885,34 @@ int generic_action_ok_displaylist_push(const char *path,
          break;
       case ACTION_OK_DL_SHADER_PASS:
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-         filebrowser_clear_type();
-         info.type          = type;
-         info.directory_ptr = idx;
-         info_path          = menu_driver_get_last_shader_pass_dir();
-         info_label         = label;
-         dl_type            = DISPLAYLIST_FILE_BROWSER_SELECT_FILE;
+         {
+            const char *shader_file_name = NULL;
+
+            filebrowser_clear_type();
+            info.type          = type;
+            info.directory_ptr = idx;
+            info_label         = label;
+            dl_type            = DISPLAYLIST_FILE_BROWSER_SELECT_FILE;
+
+            menu_driver_get_last_shader_pass_path(&info_path, &shader_file_name);
+            menu_driver_set_pending_selection(shader_file_name);
+         }
 #endif
          break;
       case ACTION_OK_DL_SHADER_PRESET:
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-         filebrowser_clear_type();
-         info.type          = type;
-         info.directory_ptr = idx;
-         info_path          = menu_driver_get_last_shader_preset_dir();
-         info_label         = label;
-         dl_type            = DISPLAYLIST_FILE_BROWSER_SELECT_FILE;
+         {
+            const char *shader_file_name = NULL;
+
+            filebrowser_clear_type();
+            info.type          = type;
+            info.directory_ptr = idx;
+            info_label         = label;
+            dl_type            = DISPLAYLIST_FILE_BROWSER_SELECT_FILE;
+
+            menu_driver_get_last_shader_preset_path(&info_path, &shader_file_name);
+            menu_driver_set_pending_selection(shader_file_name);
+         }
 #endif
          break;
       case ACTION_OK_DL_CONTENT_LIST:
@@ -883,17 +944,27 @@ int generic_action_ok_displaylist_push(const char *path,
          filebrowser_set_type(FILEBROWSER_MANUAL_SCAN_DIR);
          info.type          = FILE_TYPE_DIRECTORY;
          info.directory_ptr = idx;
-         info_path          = new_path;
          info_label         = label;
          dl_type            = DISPLAYLIST_FILE_BROWSER_SELECT_DIR;
+
+         action_ok_get_file_browser_start_path(
+               manual_content_scan_get_content_dir_ptr(),
+               new_path, parent_dir, sizeof(parent_dir), true);
+
+         info_path          = parent_dir;
          break;
       case ACTION_OK_DL_MANUAL_CONTENT_SCAN_DAT_FILE:
          filebrowser_clear_type();
          info.type          = type;
          info.directory_ptr = idx;
-         info_path          = dir_menu_content;
          info_label         = label;
          dl_type            = DISPLAYLIST_FILE_BROWSER_SELECT_FILE;
+
+         action_ok_get_file_browser_start_path(
+               manual_content_scan_get_dat_file_path_ptr(),
+               dir_menu_content, parent_dir, sizeof(parent_dir), true);
+
+         info_path          = parent_dir;
          break;
       case ACTION_OK_DL_REMAP_FILE:
          {
@@ -1762,8 +1833,8 @@ static int generic_action_ok(const char *path,
             struct video_shader      *shader  = menu_shader_get();
             flush_char = msg_hash_to_str(flush_id);
 
-            /* Cache selected shader parent directory */
-            menu_driver_set_last_shader_preset_dir(action_path);
+            /* Cache selected shader parent directory/file name */
+            menu_driver_set_last_shader_preset_path(action_path);
 
             menu_shader_manager_set_preset(shader,
                   menu_driver_get_last_shader_preset_type(),
@@ -1781,8 +1852,8 @@ static int generic_action_ok(const char *path,
 
             if (shader_pass)
             {
-               /* Cache selected shader parent directory */
-               menu_driver_set_last_shader_pass_dir(action_path);
+               /* Cache selected shader parent directory/file name */
+               menu_driver_set_last_shader_pass_path(action_path);
 
                strlcpy(
                      shader_pass->source.path,
