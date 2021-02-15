@@ -21,8 +21,6 @@ variables:
   value: '$(build.artifactStagingDirectory)\AppxPackages\\'
 - name: pfxpath 
   value: '$(build.SourcesDirectory)\RetroCert.pfx'
-- name: build  
-  value: '$(Build.BuildId)'
 
 steps:
 #- task: DownloadSecureFile@1
