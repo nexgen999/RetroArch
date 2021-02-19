@@ -136,6 +136,7 @@ typedef struct
    retro_task_t* task;
 #ifdef HAVE_THREADS
    slock_t* task_lock;
+   enum event_command queued_command;
 #endif
 
    char token[32];
@@ -158,6 +159,7 @@ static rcheevos_locals_t rcheevos_locals =
    NULL, /* task */
 #ifdef HAVE_THREADS
    NULL, /* task_lock */
+   CMD_EVENT_NONE, /* queued_command */
 #endif
    {0},  /* token */
    "N/A",/* hash */
@@ -1397,6 +1399,10 @@ bool rcheevos_unload(void)
       rcheevos_locals.hardcore_active           = false;
    }
 
+#ifdef HAVE_THREADS
+   rcheevos_locals.queued_command = CMD_EVENT_NONE;
+#endif
+
    rc_runtime_destroy(&rcheevos_locals.runtime);
 
    /* if the config-level token has been cleared, we need to re-login on loading the next game */
@@ -1824,18 +1830,24 @@ Test all the achievements (call once per frame).
 *****************************************************************************/
 void rcheevos_test(void)
 {
-   settings_t* settings;
+#ifdef HAVE_THREADS
+   if (rcheevos_locals.queued_command != CMD_EVENT_NONE)
+   {
+      command_event(rcheevos_locals.queued_command, NULL);
+      rcheevos_locals.queued_command = CMD_EVENT_NONE;
+   }
+#endif
 
    if (!rcheevos_locals.loaded)
       return;
-
-   settings = config_get_ptr();
 
    if (rcheevos_locals.memory.count == 0)
    {
       /* we were unable to initialize memory earlier, try now */
       if (!rcheevos_memory_init(&rcheevos_locals.memory, rcheevos_locals.patchdata.console_id))
       {
+         const settings_t* settings = config_get_ptr();
+
          CHEEVOS_ERR(RCHEEVOS_TAG "No memory exposed by core\n");
          rcheevos_locals.core_supports = false;
 
@@ -1852,6 +1864,35 @@ void rcheevos_test(void)
    }
 
    rc_runtime_do_frame(&rcheevos_locals.runtime, &rcheevos_runtime_event_handler, rcheevos_peek, NULL, 0);
+}
+
+size_t rcheevos_get_serialize_size(void)
+{
+   if (!rcheevos_locals.loaded)
+      return 0;
+
+   return rc_runtime_progress_size(&rcheevos_locals.runtime, NULL);
+}
+
+bool rcheevos_get_serialized_data(void* buffer)
+{
+   if (!rcheevos_locals.loaded)
+      return false;
+
+   return (rc_runtime_serialize_progress(buffer, &rcheevos_locals.runtime, NULL) == RC_OK);
+}
+
+bool rcheevos_set_serialized_data(void* buffer)
+{
+   if (rcheevos_locals.loaded)
+   {
+      if (buffer && rc_runtime_deserialize_progress(&rcheevos_locals.runtime, (const unsigned char*)buffer, NULL) == RC_OK)
+         return true;
+
+      rc_runtime_reset(&rcheevos_locals.runtime);
+   }
+
+   return false;
 }
 
 void rcheevos_set_support_cheevos(bool state)
@@ -1949,6 +1990,7 @@ enum
 static int rcheevos_iterate(rcheevos_coro_t* coro)
 {
    char buffer[2048];
+   bool ret;
 #ifdef CHEEVOS_TIME_HASH
    retro_time_t start;
 #endif
@@ -2025,27 +2067,72 @@ static int rcheevos_iterate(rcheevos_coro_t* coro)
          fclose(file);
       }
 #endif
-      if (rcheevos_parse(&rcheevos_locals, coro->json))
-      {
-         CHEEVOS_FREE(coro->json);
-         CORO_STOP();
-      }
 
+#if HAVE_REWIND
+      if (!rcheevos_hardcore_active())
+      {
+         /* deactivate rewind while we activate the achievements */
+         if (coro->settings->bools.rewind_enable)
+         {
+#ifdef HAVE_THREADS
+            /* have to "schedule" this. CMD_EVENT_REWIND_DEINIT should only be called on the main thread */
+            rcheevos_locals.queued_command = CMD_EVENT_REWIND_DEINIT;
+
+            /* wait for rewind to be disabled */
+            while (rcheevos_locals.queued_command != CMD_EVENT_NONE)
+            {
+               CORO_YIELD();
+            }
+#else
+            command_event(CMD_EVENT_REWIND_DEINIT, NULL);
+#endif
+         }
+      }
+#endif
+
+      ret = rcheevos_parse(&rcheevos_locals, coro->json);
       CHEEVOS_FREE(coro->json);
 
-      if (   rcheevos_locals.patchdata.core_count == 0
-          && rcheevos_locals.patchdata.unofficial_count == 0
-          && rcheevos_locals.patchdata.lboard_count == 0)
+      if (ret == 0)
       {
-         runloop_msg_queue_push(
+         if (rcheevos_locals.patchdata.core_count == 0
+            && rcheevos_locals.patchdata.unofficial_count == 0
+            && rcheevos_locals.patchdata.lboard_count == 0)
+         {
+            runloop_msg_queue_push(
                "This game has no achievements.",
                0, 5 * 60, false, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
 
-         rcheevos_pause_hardcore();
-         CORO_STOP();
+            rcheevos_pause_hardcore();
+         }
+         else
+         {
+            rcheevos_locals.loaded = true;
+         }
       }
 
-      rcheevos_locals.loaded = true;
+#if HAVE_REWIND
+      if (!rcheevos_hardcore_active())
+      {
+         /* re-enable rewind. if rcheevos_locals.loaded is true, additional space will be allocated
+          * for the achievement state data */
+         if (coro->settings->bools.rewind_enable)
+         {
+#ifdef HAVE_THREADS
+            /* have to "schedule" this. CMD_EVENT_REWIND_INIT should only be called on the main thread */
+            rcheevos_locals.queued_command = CMD_EVENT_REWIND_INIT;
+#else
+            command_event(CMD_EVENT_REWIND_INIT, NULL);
+#endif
+         }
+      }
+#endif
+
+      if (!rcheevos_locals.loaded)
+      {
+         /* parse failure or no achievements - nothing more to do */
+         CORO_STOP();
+      }
 
       /*
          * Inputs:  CHEEVOS_VAR_GAMEID
@@ -2699,6 +2786,9 @@ bool rcheevos_load(const void *data)
    struct rc_hash_cdreader cdreader;
 
    rcheevos_locals.loaded             = false;
+#ifdef HAVE_THREADS
+   rcheevos_locals.queued_command     = CMD_EVENT_NONE;
+#endif
    rc_runtime_init(&rcheevos_locals.runtime);
 
    if (!cheevos_enable || !rcheevos_locals.core_supports || !data)
