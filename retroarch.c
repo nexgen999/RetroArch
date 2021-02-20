@@ -8575,15 +8575,21 @@ static void path_set_redirect(struct rarch_state *p_rarch)
 
    if (global && system && !string_is_empty(system->library_name))
    {
-      if (path_is_directory(new_savefile_dir))
+      bool savefile_is_dir  = path_is_directory(new_savefile_dir);
+      bool savestate_is_dir = path_is_directory(new_savestate_dir);
+      if (savefile_is_dir)
          strlcpy(global->name.savefile, new_savefile_dir,
                sizeof(global->name.savefile));
+      else
+         savefile_is_dir    = path_is_directory(global->name.savefile);
 
-      if (path_is_directory(new_savestate_dir))
+      if (savestate_is_dir)
          strlcpy(global->name.savestate, new_savestate_dir,
                sizeof(global->name.savestate));
+      else
+         savestate_is_dir   = path_is_directory(global->name.savestate);
 
-      if (path_is_directory(global->name.savefile))
+      if (savefile_is_dir)
       {
          fill_pathname_dir(global->name.savefile,
                !string_is_empty(p_rarch->path_main_basename)
@@ -8596,7 +8602,7 @@ static void path_set_redirect(struct rarch_state *p_rarch)
                global->name.savefile);
       }
 
-      if (path_is_directory(global->name.savestate))
+      if (savestate_is_dir)
       {
          fill_pathname_dir(global->name.savestate,
                !string_is_empty(p_rarch->path_main_basename)
@@ -8710,10 +8716,15 @@ void path_set_special(char **argv, unsigned num_content)
     * It is more complicated for special content types. */
    if (global)
    {
-      if (path_is_directory(savestate_dir))
+      bool is_dir = path_is_directory(savestate_dir);
+
+      if (is_dir)
          strlcpy(global->name.savestate, savestate_dir,
                sizeof(global->name.savestate));
-      if (path_is_directory(global->name.savestate))
+      else
+         is_dir   = path_is_directory(global->name.savestate);
+
+      if (is_dir)
       {
          fill_pathname_dir(global->name.savestate,
                str,
@@ -35912,41 +35923,54 @@ static bool retroarch_load_shader_preset_internal(
       RARCH_SHADER_GLSL, RARCH_SHADER_SLANG, RARCH_SHADER_CG, RARCH_SHADER_HLSL
    };
 
-   for (i = 0; i < ARRAY_SIZE(types); i++)
+   if (string_is_empty(core_name))
    {
-      if (!video_shader_is_supported(types[i]))
-         continue;
+      if (string_is_empty(special_name))
+      {
+         for (i = 0; i < ARRAY_SIZE(types); i++)
+         {
+            if (!video_shader_is_supported(types[i]))
+               continue;
 
-      /* Concatenate strings into full paths */
-      if (!string_is_empty(core_name))
+            /* Concatenate strings into full paths */
+            fill_pathname_join(shader_path, shader_directory,
+                  special_name, sizeof(shader_path));
+            strlcat(shader_path,
+                  video_shader_get_preset_extension(types[i]),
+                  sizeof(shader_path));
+
+            if (path_is_valid(shader_path))
+               goto success;
+         }
+      }
+   }
+   else
+   {
+      for (i = 0; i < ARRAY_SIZE(types); i++)
+      {
+         if (!video_shader_is_supported(types[i]))
+            continue;
+
+         /* Concatenate strings into full paths */
          fill_pathname_join_special_ext(shader_path,
                shader_directory, core_name,
                special_name,
                video_shader_get_preset_extension(types[i]),
                sizeof(shader_path));
-      else
-      {
-         if (string_is_empty(special_name))
-            break;
 
-         fill_pathname_join(shader_path, shader_directory,
-               special_name, sizeof(shader_path));
-         strlcat(shader_path,
-               video_shader_get_preset_extension(types[i]),
-               sizeof(shader_path));
+         if (path_is_valid(shader_path))
+            goto success;
       }
-
-      if (!path_is_valid(shader_path))
-         continue;
-
-      /* Shader preset exists, load it. */
-      RARCH_LOG("[Shaders]: Specific shader preset found at %s.\n",
-            shader_path);
-      retroarch_set_runtime_shader_preset(p_rarch, shader_path);
-      return true;
    }
 
    return false;
+
+success:
+   /* Shader preset exists, load it. */
+   RARCH_LOG("[Shaders]: Specific shader preset found at %s.\n",
+         shader_path);
+   retroarch_set_runtime_shader_preset(p_rarch, shader_path);
+   return true;
 }
 
 /**
