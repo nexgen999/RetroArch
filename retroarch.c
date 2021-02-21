@@ -6192,13 +6192,11 @@ static void handle_discord_join_response(void *ignore, const char *line)
 
 static void handle_discord_join_request(const DiscordUser* request)
 {
-   static char url[PATH_MAX_LENGTH];
-   static char url_encoded[PATH_MAX_LENGTH];
-   static char filename[PATH_MAX_LENGTH];
-   char buf[PATH_MAX_LENGTH];
 #ifdef HAVE_MENU
-   menu_input_ctx_line_t line;
+#if 0
+   char buf[PATH_MAX_LENGTH];
 #endif
+   menu_input_ctx_line_t line;
 
    RARCH_LOG("[DISCORD]: Join request from %s#%s - %s %s\n",
       request->username,
@@ -6206,7 +6204,6 @@ static void handle_discord_join_request(const DiscordUser* request)
       request->userId,
       request->avatar);
 
-#ifdef HAVE_MENU
    discord_download_avatar(request->userId, request->avatar);
 
 #if 0
@@ -23488,9 +23485,9 @@ static unsigned menu_event(
 
          first_held  = true;
          if (menu_scroll_fast)
-            delay_timer = initial_held ? 200 : 100;
+            delay_timer = initial_held ? 256 : 100;
          else
-            delay_timer = initial_held ? 400 : 20;
+            delay_timer = initial_held ? 256 : 20;
          delay_count = 0;
       }
 
@@ -35923,54 +35920,41 @@ static bool retroarch_load_shader_preset_internal(
       RARCH_SHADER_GLSL, RARCH_SHADER_SLANG, RARCH_SHADER_CG, RARCH_SHADER_HLSL
    };
 
-   if (string_is_empty(core_name))
+   for (i = 0; i < ARRAY_SIZE(types); i++)
    {
-      if (string_is_empty(special_name))
-      {
-         for (i = 0; i < ARRAY_SIZE(types); i++)
-         {
-            if (!video_shader_is_supported(types[i]))
-               continue;
+      if (!video_shader_is_supported(types[i]))
+         continue;
 
-            /* Concatenate strings into full paths */
-            fill_pathname_join(shader_path, shader_directory,
-                  special_name, sizeof(shader_path));
-            strlcat(shader_path,
-                  video_shader_get_preset_extension(types[i]),
-                  sizeof(shader_path));
-
-            if (path_is_valid(shader_path))
-               goto success;
-         }
-      }
-   }
-   else
-   {
-      for (i = 0; i < ARRAY_SIZE(types); i++)
-      {
-         if (!video_shader_is_supported(types[i]))
-            continue;
-
-         /* Concatenate strings into full paths */
+      /* Concatenate strings into full paths */
+      if (!string_is_empty(core_name))
          fill_pathname_join_special_ext(shader_path,
                shader_directory, core_name,
                special_name,
                video_shader_get_preset_extension(types[i]),
                sizeof(shader_path));
+      else
+      {
+         if (string_is_empty(special_name))
+            break;
 
-         if (path_is_valid(shader_path))
-            goto success;
+         fill_pathname_join(shader_path, shader_directory,
+               special_name, sizeof(shader_path));
+         strlcat(shader_path,
+               video_shader_get_preset_extension(types[i]),
+               sizeof(shader_path));
       }
+
+      if (!path_is_valid(shader_path))
+         continue;
+
+      /* Shader preset exists, load it. */
+      RARCH_LOG("[Shaders]: Specific shader preset found at %s.\n",
+            shader_path);
+      retroarch_set_runtime_shader_preset(p_rarch, shader_path);
+      return true;
    }
 
    return false;
-
-success:
-   /* Shader preset exists, load it. */
-   RARCH_LOG("[Shaders]: Specific shader preset found at %s.\n",
-         shader_path);
-   retroarch_set_runtime_shader_preset(p_rarch, shader_path);
-   return true;
 }
 
 /**
@@ -37476,33 +37460,24 @@ static enum runloop_state runloop_check_state(
     * to be able to toggle between then.
     */
    {
-      static bool old_button_state      = false;
-      static bool old_hold_button_state = false;
-      bool new_button_state             = BIT256_GET(
+      static bool old_button_state            = false;
+      static bool old_hold_button_state       = false;
+      bool new_button_state                   = BIT256_GET(
             current_bits, RARCH_FAST_FORWARD_KEY);
-      bool new_hold_button_state        = BIT256_GET(
+      bool new_hold_button_state              = BIT256_GET(
             current_bits, RARCH_FAST_FORWARD_HOLD_KEY);
-      bool check1                       = !new_hold_button_state;
-      bool check2                       = new_button_state && !old_button_state;
+      bool check2                             = new_button_state && !old_button_state;
 
-      if (check2)
-         check1                         = p_rarch->input_driver_nonblock_state;
-      else
-         check2                         = old_hold_button_state != new_hold_button_state;
+      if (!check2)
+         check2                               = old_hold_button_state != new_hold_button_state;
 
       if (check2)
       {
+         bool check1                          = p_rarch->input_driver_nonblock_state;
+         p_rarch->input_driver_nonblock_state = !check1;
+         p_rarch->runloop_fastmotion          = !check1;
          if (check1)
-         {
-            p_rarch->input_driver_nonblock_state = false;
-            p_rarch->runloop_fastmotion          = false;
-            p_rarch->fastforward_after_frames    = 1;
-         }
-         else
-         {
-            p_rarch->input_driver_nonblock_state = true;
-            p_rarch->runloop_fastmotion          = true;
-         }
+            p_rarch->fastforward_after_frames = 1;
          driver_set_nonblock_state();
 
          /* Reset frame time counter when toggling
@@ -37823,11 +37798,11 @@ int runloop_iterate(void)
           p_rarch->audio_driver_context_audio_data &&
           p_rarch->audio_driver_buffer_size)
       {
-         size_t audio_buf_avail = p_rarch->current_audio->write_avail(
-               p_rarch->audio_driver_context_audio_data);
+         size_t audio_buf_avail;
 
-         audio_buf_avail = (audio_buf_avail > p_rarch->audio_driver_buffer_size) ?
-               p_rarch->audio_driver_buffer_size : audio_buf_avail;
+         if ((audio_buf_avail = p_rarch->current_audio->write_avail(
+               p_rarch->audio_driver_context_audio_data)) > p_rarch->audio_driver_buffer_size)
+            audio_buf_avail = p_rarch->audio_driver_buffer_size;
 
          audio_buf_occupancy = (unsigned)(100 - (audio_buf_avail * 100) /
                p_rarch->audio_driver_buffer_size);
