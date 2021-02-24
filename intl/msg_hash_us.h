@@ -8275,6 +8275,14 @@ MSG_HASH(
    "3:2 (Centered)"
    )
 MSG_HASH(
+   MENU_ENUM_LABEL_VALUE_RGUI_ASPECT_RATIO_5_3,
+   "5:3"
+   )
+MSG_HASH(
+   MENU_ENUM_LABEL_VALUE_RGUI_ASPECT_RATIO_5_3_CENTRE,
+   "5:3 (Centered)"
+   )
+MSG_HASH(
    MENU_ENUM_LABEL_VALUE_RGUI_ASPECT_RATIO_LOCK_NONE,
    "OFF"
    )
@@ -10941,7 +10949,11 @@ MSG_HASH(
    )
 MSG_HASH(
    MSG_GAME_SPECIFIC_CORE_OPTIONS_FOUND_AT,
-   "Per-Game Options: game-specific core options found at"
+   "[Core Options]: Game-specific core options found at"
+   )
+MSG_HASH(
+   MSG_FOLDER_SPECIFIC_CORE_OPTIONS_FOUND_AT,
+   "[Core Options]: Folder-specific core options found at"
    )
 MSG_HASH(
    MSG_GOT_INVALID_DISK_INDEX,
