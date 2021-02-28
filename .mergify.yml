@@ -1,7 +1,0 @@
-pull_request_rules:
-  - name: Automatic merge on approval
-    conditions:
-      - author=pull[bot]
-    actions:
-      merge:
-        method: merge
