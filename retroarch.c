@@ -1874,7 +1874,7 @@ static int generic_menu_iterate(
    p_rarch->menu_driver_is_binding = iterate_type == ITERATE_TYPE_BIND;
 
    if (     action != MENU_ACTION_NOOP
-         || menu_entries_ctl(MENU_ENTRIES_CTL_NEEDS_REFRESH, NULL)
+         || MENU_ENTRIES_NEEDS_REFRESH(menu_st)
          || GFX_DISPLAY_GET_UPDATE_PENDING(p_anim, p_disp))
    {
       BIT64_SET(menu->state, MENU_STATE_RENDER_FRAMEBUFFER);
@@ -2145,7 +2145,6 @@ static int generic_menu_iterate(
             /* Have to defer it so we let settings refresh. */
             if (p_rarch->dialog_st.pending_push)
             {
-               menu_dialog_t *p_dialog = &p_rarch->dialog_st;
                const char *label;
                menu_displaylist_info_t info;
 
@@ -2212,7 +2211,6 @@ int generic_menu_entry_action(
    struct rarch_state *p_rarch    = &rarch_st;
    struct menu_state    *menu_st  = &p_rarch->menu_driver_state;
    menu_list_t *menu_list         = menu_st->entries.list;
-   ;
    file_list_t *selection_buf     = menu_list ? MENU_LIST_GET_SELECTION(menu_list, (unsigned)0) : NULL;
    menu_file_list_cbs_t *cbs      = selection_buf ?
       (menu_file_list_cbs_t*)selection_buf->list[i].actiondata : NULL;
@@ -2286,7 +2284,7 @@ int generic_menu_entry_action(
 
    if (cbs && cbs->action_refresh)
    {
-      if (menu_entries_ctl(MENU_ENTRIES_CTL_NEEDS_REFRESH, NULL))
+      if (MENU_ENTRIES_NEEDS_REFRESH(menu_st))
       {
          bool refresh            = false;
          struct menu_state  
@@ -2405,7 +2403,7 @@ void menu_entry_get(menu_entry_t *entry, size_t stack_idx,
    menu_file_list_cbs_t *cbs   = NULL;
    struct rarch_state *p_rarch = &rarch_st;
    struct menu_state *menu_st  = &p_rarch->menu_driver_state;
-   file_list_t *selection_buf  = MENU_ENTRIES_GET_SELECTION_BUF_PTR_INTERNAL(stack_idx);
+   file_list_t *selection_buf  = MENU_ENTRIES_GET_SELECTION_BUF_PTR_INTERNAL(menu_st, stack_idx);
    file_list_t *list           = (userdata) ? (file_list_t*)userdata : selection_buf;
    bool path_enabled           = entry->path_enabled;
 
@@ -3028,11 +3026,10 @@ void menu_entries_append(
    cbs->action_down                = NULL;
    cbs->action_get_value           = NULL;
 
-   file_list_set_actiondata(list, idx, cbs);
+   list->list[idx].actiondata      = cbs;
 
-   if (list)
-      menu_cbs_init(p_rarch->menu_driver_ctx,
-            list, cbs, path, label, type, idx);
+   menu_cbs_init(p_rarch->menu_driver_ctx,
+         list, cbs, path, label, type, idx);
 }
 
 bool menu_entries_append_enum(
@@ -3048,7 +3045,6 @@ bool menu_entries_append_enum(
    size_t idx;
    const char *menu_path           = NULL;
    menu_file_list_cbs_t *cbs       = NULL;
-   const char *menu_ident          = menu_driver_ident();
    struct rarch_state   *p_rarch   = &rarch_st;
 
    if (!list || !label)
@@ -3115,7 +3111,7 @@ bool menu_entries_append_enum(
    cbs->action_down                = NULL;
    cbs->action_get_value           = NULL;
 
-   file_list_set_actiondata(list, idx, cbs);
+   list->list[idx].actiondata      = cbs;
 
    if (   enum_idx != MENU_ENUM_LABEL_PLAYLIST_ENTRY
        && enum_idx != MENU_ENUM_LABEL_PLAYLIST_COLLECTION_ENTRY
@@ -3123,9 +3119,8 @@ bool menu_entries_append_enum(
        && enum_idx != MENU_ENUM_LABEL_RDB_ENTRY)
       cbs->setting                 = menu_setting_find_enum(enum_idx);
 
-   if (!string_is_equal(menu_ident, "null") && list)
-      menu_cbs_init(p_rarch->menu_driver_ctx,
-            list, cbs, path, label, type, idx);
+   menu_cbs_init(p_rarch->menu_driver_ctx,
+         list, cbs, path, label, type, idx);
 
    return true;
 }
@@ -3136,7 +3131,7 @@ void menu_entries_prepend(file_list_t *list,
       unsigned type, size_t directory_ptr, size_t entry_idx)
 {
    menu_ctx_list_t list_info;
-   size_t idx;
+   size_t idx                      = 0;
    const char *menu_path           = NULL;
    menu_file_list_cbs_t *cbs       = NULL;
    struct rarch_state   *p_rarch   = &rarch_st;
@@ -3146,8 +3141,6 @@ void menu_entries_prepend(file_list_t *list,
    file_list_prepend(list, path, label, type, directory_ptr, entry_idx);
 
    menu_entries_get_last_stack(&menu_path, NULL, NULL, NULL, NULL);
-
-   idx              = 0;
 
    list_info.fullpath    = NULL;
 
@@ -3204,11 +3197,10 @@ void menu_entries_prepend(file_list_t *list,
    cbs->action_down                = NULL;
    cbs->action_get_value           = NULL;
 
-   file_list_set_actiondata(list, idx, cbs);
+   list->list[idx].actiondata      = cbs;
 
-   if (list)
-      menu_cbs_init(p_rarch->menu_driver_ctx,
-            list, cbs, path, label, type, idx);
+   menu_cbs_init(p_rarch->menu_driver_ctx,
+         list, cbs, path, label, type, idx);
 }
 
 void menu_entries_get_last_stack(const char **path, const char **label,
@@ -3301,11 +3293,7 @@ bool menu_entries_ctl(enum menu_entries_ctl_state state, void *data)
    switch (state)
    {
       case MENU_ENTRIES_CTL_NEEDS_REFRESH:
-         if (menu_st->entries_nonblocking_refresh)
-            return false;
-         if (!menu_st->entries_need_refresh)
-            return false;
-         break;
+         return MENU_ENTRIES_NEEDS_REFRESH(menu_st);
       case MENU_ENTRIES_CTL_SETTINGS_GET:
          {
             rarch_setting_t **settings  = (rarch_setting_t**)data;
@@ -4067,22 +4055,21 @@ void menu_display_powerstate(gfx_display_ctx_powerstate_t *powerstate)
    }
 
    /* Get last recorded state */
-   state = get_last_powerstate(&percent);
+   state                       = get_last_powerstate(&percent);
 
    /* Populate gfx_display_ctx_powerstate_t */
    powerstate->battery_enabled = (state != FRONTEND_POWERSTATE_NONE) &&
                                  (state != FRONTEND_POWERSTATE_NO_SOURCE);
+   powerstate->percent         = 0;
+   powerstate->charging        = false;
 
    if (powerstate->battery_enabled)
    {
-      powerstate->charging = (state == FRONTEND_POWERSTATE_CHARGING);
-      powerstate->percent  = percent > 0 ? (unsigned)percent : 0;
+      if (state == FRONTEND_POWERSTATE_CHARGING)
+         powerstate->charging  = true;
+      if (percent > 0)
+         powerstate->percent   = (unsigned)percent;
       snprintf(powerstate->s, powerstate->len, "%u%%", powerstate->percent);
-   }
-   else
-   {
-      powerstate->charging = false;
-      powerstate->percent  = 0;
    }
 }
 
@@ -21347,6 +21334,7 @@ static void input_overlay_poll(
    for (i = 0; i < ol->active->size; i++)
    {
       float x_dist, y_dist;
+      unsigned int base         = 0;
       struct overlay_desc *desc = &ol->active->descs[i];
 
       if (!inside_hitbox(desc, x, y))
@@ -21372,17 +21360,15 @@ static void input_overlay_poll(
             if (desc->retro_key_idx < RETROK_LAST)
                OVERLAY_SET_KEY(out, desc->retro_key_idx);
             break;
+         case OVERLAY_TYPE_ANALOG_RIGHT:
+            base = 2;
+            /* fall-through */
          default:
             {
                float x_val           = x_dist / desc->range_x;
                float y_val           = y_dist / desc->range_y;
                float x_val_sat       = x_val / desc->analog_saturate_pct;
                float y_val_sat       = y_val / desc->analog_saturate_pct;
-
-               unsigned int base     =
-                  (desc->type == OVERLAY_TYPE_ANALOG_RIGHT)
-                  ? 2 : 0;
-
                out->analog[base + 0] = clamp_float(x_val_sat, -1.0f, 1.0f)
                   * 32767.0f;
                out->analog[base + 1] = clamp_float(y_val_sat, -1.0f, 1.0f)
@@ -24559,7 +24545,6 @@ static int menu_input_post_iterate(
       unsigned action,
       retro_time_t current_time)
 {
-   menu_input_t     *menu_input  = &p_rarch->menu_input_state;
    menu_entry_t entry;
    struct menu_state *menu_st    = &p_rarch->menu_driver_state;
    menu_list_t *menu_list        = menu_st->entries.list;
@@ -36778,6 +36763,9 @@ static enum runloop_state runloop_check_state(
 #if defined(HAVE_GFX_WIDGETS)
    bool widgets_active                 = p_rarch->widgets_active;
 #endif
+#ifdef HAVE_CHEEVOS
+   bool cheevos_hardcore_active        = rcheevos_hardcore_active();
+#endif
 
 #if defined(HAVE_TRANSLATE) && defined(HAVE_GFX_WIDGETS)
    if (p_rarch->dispwidget_st.ai_service_overlay_state == 3)
@@ -37483,35 +37471,30 @@ static enum runloop_state runloop_check_state(
    {
       static bool old_frameadvance  = false;
       static bool old_pause_pressed = false;
-      bool pause_pressed, frameadvance_pressed, trig_frameadvance;
-
+      bool frameadvance_pressed     = false;
+      bool trig_frameadvance        = false;
+      bool pause_pressed            = BIT256_GET(current_bits, RARCH_PAUSE_TOGGLE);
 #ifdef HAVE_CHEEVOS
-      if (rcheevos_hardcore_active())
+      if (cheevos_hardcore_active)
       {
          static int unpaused_frames = 0;
 
-         /* frame advance is not allowed when achievement hardcore is active */
-         frameadvance_pressed = false;
-         trig_frameadvance    = false;
-
-         pause_pressed        = BIT256_GET(current_bits, RARCH_PAUSE_TOGGLE);
-
+         /* Frame advance is not allowed when achievement hardcore is active */
          if (!p_rarch->runloop_paused)
          {
-            /* limit pause to approximately three times per second (depending on core framerate) */
+            /* Limit pause to approximately three times per second (depending on core framerate) */
             if (unpaused_frames < 20)
             {
                ++unpaused_frames;
-               pause_pressed = false;
+               pause_pressed        = false;
             }
          }
          else
-            unpaused_frames = 0;
+            unpaused_frames         = 0;
       }
       else
 #endif
       {
-         pause_pressed        = BIT256_GET(current_bits, RARCH_PAUSE_TOGGLE);
          frameadvance_pressed = BIT256_GET(current_bits, RARCH_FRAMEADVANCE);
          trig_frameadvance    = frameadvance_pressed && !old_frameadvance;
 
@@ -37681,80 +37664,80 @@ static enum runloop_state runloop_check_state(
    HOTKEY_CHECK(RARCH_LOAD_STATE_KEY, CMD_EVENT_LOAD_STATE, true, NULL);
 
 #ifdef HAVE_CHEEVOS
-   if (!rcheevos_hardcore_active())
+   if (!cheevos_hardcore_active)
 #endif
+   {
+      /* Check if rewind toggle was being held. */
+      {
 #ifdef HAVE_REWIND
-   {
-      char s[128];
-      bool rewinding = false;
-      unsigned t     = 0;
+         char s[128];
+         bool rewinding = false;
+         unsigned t     = 0;
 
-      s[0]           = '\0';
+         s[0]           = '\0';
 
-      rewinding      = state_manager_check_rewind(
-            &p_rarch->rewind_st,
-            BIT256_GET(current_bits, RARCH_REWIND),
-            settings->uints.rewind_granularity,
-            p_rarch->runloop_paused,
-            s, sizeof(s), &t);
-
-#if defined(HAVE_GFX_WIDGETS)
-      if (widgets_active)
-         p_rarch->gfx_widgets_rewinding = rewinding;
-      else
-#endif
-      {
-         if (rewinding)
-            runloop_msg_queue_push(s, 0, t, true, NULL,
-                  MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
-      }
-   }
-#endif
-
-   /* Checks if slowmotion toggle/hold was being pressed and/or held. */
-#ifdef HAVE_CHEEVOS
-   if (!rcheevos_hardcore_active())
-#endif
-   {
-      static bool old_slowmotion_button_state      = false;
-      static bool old_slowmotion_hold_button_state = false;
-      bool new_slowmotion_button_state             = BIT256_GET(
-            current_bits, RARCH_SLOWMOTION_KEY);
-      bool new_slowmotion_hold_button_state        = BIT256_GET(
-            current_bits, RARCH_SLOWMOTION_HOLD_KEY);
-
-      if (new_slowmotion_button_state && !old_slowmotion_button_state)
-         p_rarch->runloop_slowmotion = !p_rarch->runloop_slowmotion;
-      else if (old_slowmotion_hold_button_state != new_slowmotion_hold_button_state)
-         p_rarch->runloop_slowmotion = new_slowmotion_hold_button_state;
-
-      if (p_rarch->runloop_slowmotion)
-      {
-         if (settings->uints.video_black_frame_insertion)
-            if (!p_rarch->runloop_idle)
-               video_driver_cached_frame();
+         rewinding      = state_manager_check_rewind(
+               &p_rarch->rewind_st,
+               BIT256_GET(current_bits, RARCH_REWIND),
+               settings->uints.rewind_granularity,
+               p_rarch->runloop_paused,
+               s, sizeof(s), &t);
 
 #if defined(HAVE_GFX_WIDGETS)
-         if (!widgets_active)
+         if (widgets_active)
+            p_rarch->gfx_widgets_rewinding = rewinding;
+         else
 #endif
          {
-#ifdef HAVE_REWIND
-            struct state_manager_rewind_state 
-               *rewind_st = &p_rarch->rewind_st;
-            if (rewind_st->frame_is_reversed)
-               runloop_msg_queue_push(
-                     msg_hash_to_str(MSG_SLOW_MOTION_REWIND), 1, 1, false, NULL,
+            if (rewinding)
+               runloop_msg_queue_push(s, 0, t, true, NULL,
                      MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
-            else
-#endif
-               runloop_msg_queue_push(
-                     msg_hash_to_str(MSG_SLOW_MOTION), 1, 1, false,
-                     NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
          }
+#endif
       }
 
-      old_slowmotion_button_state                  = new_slowmotion_button_state;
-      old_slowmotion_hold_button_state             = new_slowmotion_hold_button_state;
+      {
+         /* Checks if slowmotion toggle/hold was being pressed and/or held. */
+         static bool old_slowmotion_button_state      = false;
+         static bool old_slowmotion_hold_button_state = false;
+         bool new_slowmotion_button_state             = BIT256_GET(
+               current_bits, RARCH_SLOWMOTION_KEY);
+         bool new_slowmotion_hold_button_state        = BIT256_GET(
+               current_bits, RARCH_SLOWMOTION_HOLD_KEY);
+
+         if (new_slowmotion_button_state && !old_slowmotion_button_state)
+            p_rarch->runloop_slowmotion = !p_rarch->runloop_slowmotion;
+         else if (old_slowmotion_hold_button_state != new_slowmotion_hold_button_state)
+            p_rarch->runloop_slowmotion = new_slowmotion_hold_button_state;
+
+         if (p_rarch->runloop_slowmotion)
+         {
+            if (settings->uints.video_black_frame_insertion)
+               if (!p_rarch->runloop_idle)
+                  video_driver_cached_frame();
+
+#if defined(HAVE_GFX_WIDGETS)
+            if (!widgets_active)
+#endif
+            {
+#ifdef HAVE_REWIND
+               struct state_manager_rewind_state 
+                  *rewind_st = &p_rarch->rewind_st;
+               if (rewind_st->frame_is_reversed)
+                  runloop_msg_queue_push(
+                        msg_hash_to_str(MSG_SLOW_MOTION_REWIND), 1, 1, false, NULL,
+                        MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
+               else
+#endif
+                  runloop_msg_queue_push(
+                        msg_hash_to_str(MSG_SLOW_MOTION), 1, 1, false,
+                        NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
+            }
+         }
+
+         old_slowmotion_button_state                  = new_slowmotion_button_state;
+         old_slowmotion_hold_button_state             = new_slowmotion_hold_button_state;
+      }
    }
 
    /* Check movie record toggle */
@@ -37778,7 +37761,6 @@ static enum runloop_state runloop_check_state(
          RARCH_CHEAT_INDEX_PLUS,  CMD_EVENT_CHEAT_INDEX_PLUS,
          RARCH_CHEAT_INDEX_MINUS, CMD_EVENT_CHEAT_INDEX_MINUS,
          RARCH_CHEAT_TOGGLE,      CMD_EVENT_CHEAT_TOGGLE);
-
 
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
    if (settings->bools.video_shader_watch_files)

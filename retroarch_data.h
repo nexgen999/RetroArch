@@ -284,7 +284,8 @@
 
 #define MENU_LIST_GET_STACK_SIZE(list, idx) ((list)->menu_stack[(idx)]->size)
 
-#define MENU_ENTRIES_GET_SELECTION_BUF_PTR_INTERNAL(idx) ((menu_st->entries.list) ? MENU_LIST_GET_SELECTION(menu_st->entries.list, (unsigned)idx) : NULL)
+#define MENU_ENTRIES_GET_SELECTION_BUF_PTR_INTERNAL(menu_st, idx) ((menu_st->entries.list) ? MENU_LIST_GET_SELECTION(menu_st->entries.list, (unsigned)idx) : NULL)
+#define MENU_ENTRIES_NEEDS_REFRESH(menu_st) (!(menu_st->entries_nonblocking_refresh || !menu_st->entries_need_refresh))
 #endif
 
 #define CDN_URL "https://cdn.discordapp.com/avatars"
@@ -2774,6 +2775,8 @@ static void *null_menu_init(void **userdata, bool video_is_threaded)
       return NULL;
    return menu;
 }
+static int null_menu_list_bind_init(menu_file_list_cbs_t *cbs,
+      const char *path, const char *label, unsigned type, size_t idx) { return 0; }
 
 static menu_ctx_driver_t menu_ctx_null = {
   NULL,  /* set_texture */
@@ -2805,7 +2808,7 @@ static menu_ctx_driver_t menu_ctx_null = {
   NULL,  /* list_get_size */
   NULL,  /* list_get_entry */
   NULL,  /* list_set_selection */
-  NULL,  /* bind_init */
+  null_menu_list_bind_init,
   NULL,  /* load_image */
   "null",
   NULL,  /* environ */
