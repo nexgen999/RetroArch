@@ -26,7 +26,7 @@
 #include <queues/task_queue.h>
 #include <retro_timers.h>
 
-#include "cocoa/cocoa_defines.h"
+#include "../../defines/cocoa_defines.h"
 #include "cocoa/cocoa_common.h"
 #include "cocoa/apple_platform.h"
 
@@ -158,15 +158,8 @@ static bool ui_browser_window_cocoa_open(ui_browser_window_state_t *state)
    panel.allowsMultipleSelection         = NO;
    panel.treatsFilePackagesAsDirectories = NO;
 
-#if defined(HAVE_COCOA_METAL)
-   NSModalResponse result = [panel runModal];
-   if (result != NSModalResponseOK)
+   if ([panel runModal] != 1)
        return false;
-#elif defined(HAVE_COCOA)
-   NSInteger result       = [panel runModal];
-   if (result != 1)
-       return false;
-#endif
 #endif
 
    NSURL *url           = (NSURL*)panel.URL;
