@@ -3460,10 +3460,8 @@ static unsigned menu_displaylist_parse_cores(
 
       for (i = 0; i < list_size; i++)
       {
-         unsigned type                      = 0;
-         const char *path                   = NULL;
-
-         file_list_get_at_offset(info->list, i, &path, NULL, &type, NULL);
+         const char *path                   = info->list->list[i].path;
+         unsigned type                      = info->list->list[i].type;
 
          if (type == FILE_TYPE_CORE)
          {
@@ -5812,6 +5810,7 @@ unsigned menu_displaylist_build_list(
          count              = menu_displaylist_parse_system_info(list);
          break;
       case DISPLAYLIST_EXPLORE:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
 #if defined(HAVE_LIBRETRODB)
          count              = menu_displaylist_explore(list);
 #endif
@@ -6643,6 +6642,7 @@ unsigned menu_displaylist_build_list(
 #endif
          break;
       case DISPLAYLIST_DROPDOWN_LIST_RESOLUTION:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          {
             unsigned i, size                  = 0;
             struct video_display_config *video_list = (struct video_display_config*)
@@ -6679,6 +6679,7 @@ unsigned menu_displaylist_build_list(
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_PLAYLIST_DEFAULT_CORE:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          {
             core_info_list_t *core_info_list = NULL;
             playlist_t *playlist             = playlist_get_cached();
@@ -6742,6 +6743,7 @@ unsigned menu_displaylist_build_list(
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_PLAYLIST_LABEL_DISPLAY_MODE:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          {
             playlist_t *playlist = playlist_get_cached();
 
@@ -6803,12 +6805,15 @@ unsigned menu_displaylist_build_list(
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_PLAYLIST_RIGHT_THUMBNAIL_MODE:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          count = populate_playlist_thumbnail_mode_dropdown_list(list, PLAYLIST_THUMBNAIL_RIGHT);
          break;
       case DISPLAYLIST_DROPDOWN_LIST_PLAYLIST_LEFT_THUMBNAIL_MODE:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          count = populate_playlist_thumbnail_mode_dropdown_list(list, PLAYLIST_THUMBNAIL_LEFT);
          break;
       case DISPLAYLIST_DROPDOWN_LIST_PLAYLIST_SORT_MODE:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          {
             playlist_t *playlist = playlist_get_cached();
 
@@ -6863,6 +6868,7 @@ unsigned menu_displaylist_build_list(
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_MANUAL_CONTENT_SCAN_SYSTEM_NAME:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          /* Get system name list */
          {
             settings_t *settings              = config_get_ptr();
@@ -6919,6 +6925,7 @@ unsigned menu_displaylist_build_list(
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_MANUAL_CONTENT_SCAN_CORE_NAME:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          {
             /* Get core name list */
             struct string_list *core_name_list =
@@ -6964,6 +6971,7 @@ unsigned menu_displaylist_build_list(
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_DISK_INDEX:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, list);
          {
             rarch_system_info_t *sys_info = runloop_get_system_info();
 
@@ -10809,6 +10817,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          }
          break;
       case DISPLAYLIST_MUSIC_HISTORY:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
          {
             settings_t      *settings     = config_get_ptr();
             const char *
@@ -10851,6 +10860,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          }
          break;
       case DISPLAYLIST_VIDEO_HISTORY:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
          info->count           = 0;
 #if defined(HAVE_FFMPEG) || defined(HAVE_MPV)
          {
@@ -12240,6 +12250,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          use_filebrowser    = true;
          break;
       case DISPLAYLIST_PLAYLIST:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
          menu_displaylist_parse_playlist_generic(menu, info,
                path_basename(info->path),
                info->path,
@@ -12259,6 +12270,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          }
          break;
       case DISPLAYLIST_IMAGES_HISTORY:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
          info->count           = 0;
 #ifdef HAVE_IMAGEVIEWER
          {
@@ -12489,9 +12501,8 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          info->need_push    = true;
          break;
       case DISPLAYLIST_DROPDOWN_LIST:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
          {
-            menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
-
             if (string_starts_with_size(info->path, "core_option_",
                      STRLEN_CONST("core_option_")))
             {
@@ -12913,6 +12924,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          }
          break;
       case DISPLAYLIST_DROPDOWN_LIST_VIDEO_SHADER_NUM_PASSES:
+         menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
          {
             unsigned i;
