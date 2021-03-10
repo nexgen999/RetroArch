@@ -1791,9 +1791,7 @@ static void menu_input_set_pointer_visibility(
       menu_input_t *menu_input,
       retro_time_t current_time)
 {
-   bool show_cursor                                = false;
    static bool cursor_shown                        = false;
-   bool hide_cursor                                = false;
    static bool cursor_hidden                       = false;
    static retro_time_t end_time                    = 0;
 
@@ -1801,37 +1799,33 @@ static void menu_input_set_pointer_visibility(
    if ((menu_input->pointer.type == MENU_POINTER_MOUSE) 
          && pointer_hw_state->active)
    {
+      /* Show cursor */
       if ((current_time > end_time) && !cursor_shown)
-         show_cursor = true;
+      {
+         menu_ctx_environment_t menu_environ;
+         menu_environ.type = MENU_ENVIRON_ENABLE_MOUSE_CURSOR;
+         menu_environ.data = NULL;
+
+         menu_driver_ctl(RARCH_MENU_CTL_ENVIRONMENT, &menu_environ);
+         cursor_shown  = true;
+         cursor_hidden = false;
+      }
 
       end_time = current_time + MENU_INPUT_HIDE_CURSOR_DELAY;
    }
    else
    {
+      /* Hide cursor */
       if ((current_time > end_time) && !cursor_hidden)
-         hide_cursor = true;
-   }
+      {
+         menu_ctx_environment_t menu_environ;
+         menu_environ.type = MENU_ENVIRON_DISABLE_MOUSE_CURSOR;
+         menu_environ.data = NULL;
 
-   if (show_cursor)
-   {
-      menu_ctx_environment_t menu_environ;
-      menu_environ.type = MENU_ENVIRON_ENABLE_MOUSE_CURSOR;
-      menu_environ.data = NULL;
-
-      menu_driver_ctl(RARCH_MENU_CTL_ENVIRONMENT, &menu_environ);
-      cursor_shown  = true;
-      cursor_hidden = false;
-   }
-
-   if (hide_cursor)
-   {
-      menu_ctx_environment_t menu_environ;
-      menu_environ.type = MENU_ENVIRON_DISABLE_MOUSE_CURSOR;
-      menu_environ.data = NULL;
-
-      menu_driver_ctl(RARCH_MENU_CTL_ENVIRONMENT, &menu_environ);
-      cursor_shown  = false;
-      cursor_hidden = true;
+         menu_driver_ctl(RARCH_MENU_CTL_ENVIRONMENT, &menu_environ);
+         cursor_shown  = false;
+         cursor_hidden = true;
+      }
    }
 }
 
@@ -1950,8 +1944,7 @@ static int generic_menu_iterate(
                         const char *path                       = NULL;
 
                         /* Get core path */
-                        menu_entries_get_at_offset(selection_buf, selection,
-                              &path, NULL, NULL, NULL, NULL);
+                        file_list_get_at_offset(selection_buf, selection, &path, NULL, NULL, NULL);
 
                         /* Search for specified core */
                         if (core_list && path &&
@@ -1974,8 +1967,7 @@ static int generic_menu_iterate(
                         core_info_ctx_find_t core_info;
 
                         /* Get core path */
-                        menu_entries_get_at_offset(selection_buf, selection,
-                              &path, NULL, NULL, NULL, NULL);
+                        file_list_get_at_offset(selection_buf, selection, &path, NULL, NULL, NULL);
 
                         /* Search for specified core */
                         core_info.inf  = NULL;
@@ -2030,8 +2022,7 @@ static int generic_menu_iterate(
                unsigned type = 0;
                enum msg_hash_enums enum_idx = MSG_UNKNOWN;
                size_t selection             = menu_st->selection_ptr;
-               menu_entries_get_at_offset(selection_buf, selection,
-                     NULL, NULL, &type, NULL, NULL);
+               file_list_get_at_offset(selection_buf, selection, NULL, NULL, &type, NULL);
 
                switch (type)
                {
@@ -2712,17 +2703,6 @@ static void menu_list_flush_stack(
       file_list_get_last(menu_list,
             &path, &label, &type, &entry_idx);
    }
-}
-
-void menu_entries_get_at_offset(const file_list_t *list, size_t idx,
-      const char **path, const char **label, unsigned *file_type,
-      size_t *entry_idx, const char **alt)
-{
-   file_list_get_at_offset(list, idx, path, label, file_type, entry_idx);
-   if (list && alt)
-      *alt = list->list[idx].alt
-         ? list->list[idx].alt
-         : list->list[idx].path;
 }
 
 /**
@@ -29818,16 +29798,13 @@ error:
    return false;
 }
 
-static void video_driver_set_viewport_config(struct rarch_state *p_rarch)
+static void video_driver_set_viewport_config(struct retro_game_geometry *geom,
+      settings_t *settings)
 {
-   settings_t       *settings     = p_rarch->configuration_settings;
    float       video_aspect_ratio = settings->floats.video_aspect_ratio;
 
    if (video_aspect_ratio < 0.0f)
    {
-      struct retro_game_geometry *geom =
-         &p_rarch->video_driver_av_info.geometry;
-
       if (geom->aspect_ratio > 0.0f &&
             settings->bools.video_aspect_ratio_auto)
          aspectratio_lut[ASPECT_RATIO_CONFIG].value = geom->aspect_ratio;
@@ -29917,7 +29894,7 @@ static bool video_driver_init_internal(bool *video_is_threaded)
    /* Update core-dependent aspect ratio values. */
    video_driver_set_viewport_square_pixel(&p_rarch->video_driver_av_info.geometry);
    video_driver_set_viewport_core();
-   video_driver_set_viewport_config(p_rarch);
+   video_driver_set_viewport_config(&p_rarch->video_driver_av_info.geometry, p_rarch->configuration_settings);
 
    /* Update CUSTOM viewport. */
    custom_vp = video_viewport_get_custom();
@@ -30700,7 +30677,7 @@ void video_driver_set_aspect_ratio(void)
          break;
 
       case ASPECT_RATIO_CONFIG:
-         video_driver_set_viewport_config(p_rarch);
+         video_driver_set_viewport_config(&p_rarch->video_driver_av_info.geometry, settings);
          break;
 
       default:
