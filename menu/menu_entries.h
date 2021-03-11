@@ -108,12 +108,8 @@ typedef struct menu_file_list_cbs
    int (*action_start)(const char *path, const char *label, unsigned type,
          size_t idx, size_t entry_idx);
    int (*action_info)(unsigned type,  const char *label);
-   int (*action_content_list_switch)(void *data, void *userdata, const char
-         *path, const char *label, unsigned type);
    int (*action_left)(unsigned type, const char *label, bool wraparound);
    int (*action_right)(unsigned type, const char *label, bool wraparound);
-   int (*action_refresh)(file_list_t *list, file_list_t *menu_list);
-   int (*action_up)(unsigned type, const char *label);
    int (*action_label)(file_list_t *list,
          unsigned type, unsigned i,
          const char *label, const char *path,
@@ -122,7 +118,6 @@ typedef struct menu_file_list_cbs
          unsigned type, unsigned i,
          const char *label, const char *path,
          char *s, size_t len);
-   int (*action_down)(unsigned type, const char *label);
    void (*action_get_value)(file_list_t* list,
          unsigned *w, unsigned type, unsigned i,
          const char *label, char *s, size_t len,
