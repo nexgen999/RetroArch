@@ -8278,12 +8278,6 @@ static void log_counters(
    }
 }
 
-static void rarch_perf_log(struct rarch_state *p_rarch)
-{
-   RARCH_LOG("[PERF]: Performance counters (RetroArch):\n");
-   log_counters(p_rarch->perf_counters_rarch, p_rarch->perf_ptr_rarch);
-}
-
 static void retro_perf_log(void)
 {
    struct rarch_state *p_rarch = &rarch_st;
@@ -8337,14 +8331,6 @@ static void performance_counter_register(struct retro_perf_counter *perf)
 
    p_rarch->perf_counters_libretro[p_rarch->perf_ptr_libretro++] = perf;
    perf->registered = true;
-}
-
-static void performance_counters_clear(void)
-{
-   struct rarch_state *p_rarch = &rarch_st;
-   p_rarch->perf_ptr_libretro  = 0;
-   memset(p_rarch->perf_counters_libretro, 0,
-         sizeof(p_rarch->perf_counters_libretro));
 }
 
 struct string_list *dir_list_new_special(const char *input_dir,
@@ -15432,7 +15418,10 @@ void main_exit(void *args)
    rarch_ctl(RARCH_CTL_MAIN_DEINIT, NULL);
 
    if (p_rarch->runloop_perfcnt_enable)
-      rarch_perf_log(p_rarch);
+   {
+      RARCH_LOG("[PERF]: Performance counters (RetroArch):\n");
+      log_counters(p_rarch->perf_counters_rarch, p_rarch->perf_ptr_rarch);
+   }
 
 #if defined(HAVE_LOGGER) && !defined(ANDROID)
    logger_shutdown();
@@ -15467,7 +15456,7 @@ void main_exit(void *args)
 
    frontend_driver_shutdown(false);
 
-   retroarch_deinit_drivers(p_rarch);
+   retroarch_deinit_drivers(p_rarch, &p_rarch->retro_ctx);
    ui_companion_driver_free();
    frontend_driver_free();
 
@@ -15525,7 +15514,7 @@ int rarch_main(int argc, char *argv[], void *data)
 
    p_rarch->configuration_settings = (settings_t*)calloc(1, sizeof(settings_t));
 
-   retroarch_deinit_drivers(p_rarch);
+   retroarch_deinit_drivers(p_rarch, &p_rarch->retro_ctx);
    rarch_ctl(RARCH_CTL_STATE_FREE,  NULL);
    global_free(p_rarch);
 
@@ -18906,7 +18895,9 @@ static void uninit_libretro_symbols(
    p_rarch->location_driver_active    = false;
 
    /* Performance counters no longer valid. */
-   performance_counters_clear();
+   p_rarch->perf_ptr_libretro  = 0;
+   memset(p_rarch->perf_counters_libretro, 0,
+         sizeof(p_rarch->perf_counters_libretro));
 }
 
 #if defined(HAVE_RUNAHEAD)
@@ -22326,31 +22317,31 @@ static void input_driver_poll(void)
 
    p_rarch->input_driver_turbo_btns.count++;
 
-   for (i = 0; i < max_users; i++)
-      p_rarch->input_driver_turbo_btns.frame_enable[i] = 0;
-
    if (p_rarch->input_driver_block_libretro_input)
+   {
+      for (i = 0; i < max_users; i++)
+         p_rarch->input_driver_turbo_btns.frame_enable[i] = 0;
       return;
+   }
 
    for (i = 0; i < max_users; i++)
    {
       joypad_info[i].axis_threshold              = p_rarch->input_driver_axis_threshold;
       joypad_info[i].joy_idx                     = settings->uints.input_joypad_map[i];
       joypad_info[i].auto_binds                  = input_autoconf_binds[joypad_info[i].joy_idx];
-      if (p_rarch->libretro_input_binds[i][RARCH_TURBO_ENABLE].valid)
-         p_rarch->input_driver_turbo_btns.frame_enable[i] = 
-            input_state_wrap(
-                  p_rarch->current_input,
-                  p_rarch->current_input_data,
-                  p_rarch->joypad,
-                  sec_joypad,
-                  &joypad_info[i],
-                  p_rarch->libretro_input_binds,
-                  p_rarch->keyboard_mapping_blocked,
-                  (unsigned)i,
-                  RETRO_DEVICE_JOYPAD,
-                  0,
-                  RARCH_TURBO_ENABLE);
+      p_rarch->input_driver_turbo_btns.frame_enable[i] = p_rarch->libretro_input_binds[i][RARCH_TURBO_ENABLE].valid ?
+         input_state_wrap(
+               p_rarch->current_input,
+               p_rarch->current_input_data,
+               p_rarch->joypad,
+               sec_joypad,
+               &joypad_info[i],
+               p_rarch->libretro_input_binds,
+               p_rarch->keyboard_mapping_blocked,
+               (unsigned)i,
+               RETRO_DEVICE_JOYPAD,
+               0,
+               RARCH_TURBO_ENABLE) : 0;
    }
 
 #ifdef HAVE_OVERLAY
@@ -23166,13 +23157,13 @@ static int16_t input_joypad_axis(
 
 static void menu_input_driver_toggle(
       struct rarch_state *p_rarch,
+      menu_input_t *menu_input,
+      settings_t *settings,
       bool on)
 {
-   menu_input_t *menu_input     = &p_rarch->menu_input_state;
 #ifdef HAVE_OVERLAY
    if (on)
    {
-      settings_t *settings      = p_rarch->configuration_settings;
       bool overlay_hide_in_menu = settings->bools.input_overlay_hide_in_menu;
       bool input_overlay_enable = settings->bools.input_overlay_enable;
       /* If an overlay was displayed before the toggle
@@ -25025,12 +25016,6 @@ static input_remote_t *input_driver_init_remote(
          num_active_users);
 }
 #endif
-
-static input_mapper_t *input_driver_init_mapper(void)
-{
-   input_mapper_t *handle        = (input_mapper_t*)calloc(1, sizeof(*handle));
-   return handle;
-}
 
 float *input_driver_get_float(enum input_action action)
 {
@@ -29832,9 +29817,8 @@ static void video_driver_free_hw_context(struct rarch_state *p_rarch)
    p_rarch->hw_render_context_negotiation = NULL;
 }
 
-static void video_driver_free_internal(void)
+static void video_driver_free_internal(struct rarch_state *p_rarch)
 {
-   struct rarch_state *p_rarch = &rarch_st;
 #ifdef HAVE_THREADS
    bool        is_threaded     = VIDEO_DRIVER_IS_THREADED_INTERNAL();
 #endif
@@ -33036,7 +33020,7 @@ static void driver_uninit(struct rarch_state *p_rarch, int flags)
 
    if (flags & DRIVERS_VIDEO_INPUT)
    {
-      video_driver_free_internal();
+      video_driver_free_internal(p_rarch);
       VIDEO_DRIVER_LOCK_FREE();
       p_rarch->video_driver_data = NULL;
       video_driver_set_cached_frame_ptr(NULL);
@@ -33058,10 +33042,8 @@ static void driver_uninit(struct rarch_state *p_rarch, int flags)
       midi_driver_free(p_rarch);
 }
 
-static void retroarch_deinit_drivers(struct rarch_state *p_rarch)
+static void retroarch_deinit_drivers(struct rarch_state *p_rarch, struct retro_callbacks *cbs)
 {
-   struct retro_callbacks *cbs = &p_rarch->retro_ctx;
-
 #if defined(HAVE_GFX_WIDGETS)
    /* Tear down display widgets no matter what
     * in case the handle is lost in the threaded
@@ -34161,6 +34143,7 @@ static void retroarch_print_help(const char *arg0)
  **/
 static void retroarch_parse_input_and_config(
       struct rarch_state *p_rarch,
+      global_t *global,
       int argc, char *argv[])
 {
    unsigned i;
@@ -34170,9 +34153,8 @@ static void retroarch_parse_input_and_config(
    bool                 cli_active = false;
    bool               cli_core_set = false;
    bool            cli_content_set = false;
-   global_t                *global = &p_rarch->g_extern;
 
-   const struct option opts[] = {
+   const struct option opts[]      = {
 #ifdef HAVE_DYNAMIC
       { "libretro",           1, NULL, 'L' },
 #endif
@@ -34992,7 +34974,7 @@ bool retroarch_main_init(int argc, char *argv[])
    /* Have to initialise non-file logging once at the start... */
    retro_main_log_file_init(NULL, false);
 
-   retroarch_parse_input_and_config(p_rarch, argc, argv);
+   retroarch_parse_input_and_config(p_rarch, &p_rarch->g_extern, argc, argv);
 
 #ifdef HAVE_ACCESSIBILITY
    if (is_accessibility_enabled(p_rarch))
@@ -35181,7 +35163,7 @@ bool retroarch_main_init(int argc, char *argv[])
       free(p_rarch->input_driver_mapper);
    p_rarch->input_driver_mapper = NULL;
    if (p_rarch->configuration_settings->bools.input_remap_binds_enable)
-      p_rarch->input_driver_mapper = input_driver_init_mapper();
+      p_rarch->input_driver_mapper = (input_mapper_t*)calloc(1, sizeof(*p_rarch->input_driver_mapper));
 #ifdef HAVE_REWIND
    command_event(CMD_EVENT_REWIND_INIT, NULL);
 #endif
@@ -35266,6 +35248,9 @@ static void menu_input_key_event(bool down, unsigned keycode,
 static void menu_driver_toggle(
       struct rarch_state *p_rarch,
       menu_handle_t *menu,
+      settings_t *settings,
+      retro_keyboard_event_t *key_event,
+      retro_keyboard_event_t *frontend_key_event,
       bool on)
 {
    /* TODO/FIXME - retroarch_main_quit calls menu_driver_toggle -
@@ -35273,9 +35258,6 @@ static void menu_driver_toggle(
     * on OSX - for now we work around this by checking if the settings
     * struct is NULL
     */
-   retro_keyboard_event_t *key_event          = &p_rarch->runloop_key_event;
-   retro_keyboard_event_t *frontend_key_event = &p_rarch->runloop_frontend_key_event;
-   settings_t                 *settings       = p_rarch->configuration_settings;
    bool pause_libretro                        = settings ?
       settings->bools.menu_pause_libretro : false;
 #ifdef HAVE_AUDIOMIXER
@@ -35294,7 +35276,8 @@ static void menu_driver_toggle(
    /* Apply any required menu pointer input inhibits
     * (i.e. prevent phantom input when using an overlay
     * to toggle the menu on) */
-   menu_input_driver_toggle(p_rarch, on);
+   menu_input_driver_toggle(p_rarch,
+         &p_rarch->menu_input_state, settings, on);
 
    if (p_rarch->menu_driver_alive)
    {
@@ -35380,7 +35363,10 @@ void retroarch_menu_running(void)
 #ifdef HAVE_MENU
    menu_handle_t *menu             = p_rarch->menu_driver_data;
    if (menu)
-      menu_driver_toggle(p_rarch, menu, true);
+      menu_driver_toggle(p_rarch, menu, settings,
+            &p_rarch->runloop_key_event,
+            &p_rarch->runloop_frontend_key_event,
+            true);
 
    /* Prevent stray input (for a single frame) */
    p_rarch->input_driver_flushing_input = 1;
@@ -35416,7 +35402,10 @@ void retroarch_menu_running_finished(bool quit)
 #ifdef HAVE_MENU
    menu_handle_t *menu                  = p_rarch->menu_driver_data;
    if (menu)
-      menu_driver_toggle(p_rarch, menu, false);
+      menu_driver_toggle(p_rarch, menu, settings, 
+            &p_rarch->runloop_key_event,
+            &p_rarch->runloop_frontend_key_event,
+            false);
 
    /* Prevent stray input
     * (for a single frame) */
@@ -38491,7 +38480,7 @@ static bool core_init_libretro_cbs(
  *
  * Binds the libretro callbacks to default callback functions.
  **/
-bool core_set_default_callbacks(struct retro_callbacks *cbs)
+static bool core_set_default_callbacks(struct retro_callbacks *cbs)
 {
    retro_input_state_t state_cb = core_input_state_poll_return_cb();
 
@@ -38503,6 +38492,8 @@ bool core_set_default_callbacks(struct retro_callbacks *cbs)
 
    return true;
 }
+
+
 
 #ifdef HAVE_REWIND
 /**
