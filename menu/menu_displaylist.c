@@ -7291,6 +7291,7 @@ unsigned menu_displaylist_build_list(
             menu_displaylist_build_info_selective_t build_list[] = {
                {MENU_ENUM_LABEL_MENU_VIEWS_SETTINGS,                                   PARSE_ACTION,      true},
                {MENU_ENUM_LABEL_MENU_SETTINGS,                                         PARSE_ACTION,      true},
+               {MENU_ENUM_LABEL_MENU_DRIVER,                                           PARSE_ONLY_STRING_OPTIONS, true},
                {MENU_ENUM_LABEL_SHOW_ADVANCED_SETTINGS,                                PARSE_ONLY_BOOL,   true},
                {MENU_ENUM_LABEL_MENU_ENABLE_KIOSK_MODE,                                PARSE_ONLY_BOOL,   true},
                {MENU_ENUM_LABEL_MENU_KIOSK_MODE_PASSWORD,                              PARSE_ONLY_STRING, false},
@@ -7414,7 +7415,7 @@ unsigned menu_displaylist_build_list(
                      MENU_ENUM_LABEL_VIDEO_DRIVER,
                      PARSE_ONLY_STRING_OPTIONS, false) == 0)
                count++;
-#if defined(GEKKO)
+#if defined(GEKKO) || !defined(__PSL1GHT__) && defined(__PS3__)
             if (true)
 #else
                if (video_display_server_has_resolution_list())

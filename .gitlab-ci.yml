@@ -308,7 +308,7 @@ build-retroarch-linux-i686:
     - "cd gfx/video_filters && make -j$NUMPROC build=release && make -j$NUMPROC build=release strip && cd -"
     - "cp -f gfx/video_filters/*.so ${MEDIA_PATH}/${CI_PROJECT_NAME}/filters/video"
     - "cp -f gfx/video_filters/*.filt ${MEDIA_PATH}/${CI_PROJECT_NAME}/filters/video"
-
+  
 .build-retroarch-macos-xcode:
   # Metal/Universal x86_64 arm64 is default
   tags:
