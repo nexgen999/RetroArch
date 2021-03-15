@@ -2325,7 +2325,11 @@ static bool menu_driver_displaylist_push_internal(
    return false;
 }
 
-static bool menu_driver_displaylist_push(menu_displaylist_ctx_entry_t *entry)
+static bool menu_driver_displaylist_push(
+      struct rarch_state *p_rarch,
+      struct menu_state *menu_st,
+      file_list_t *entry_list,
+      file_list_t *entry_stack)
 {
    menu_displaylist_info_t info;
    const char *path               = NULL;
@@ -2333,8 +2337,6 @@ static bool menu_driver_displaylist_push(menu_displaylist_ctx_entry_t *entry)
    unsigned type                  = 0;
    bool ret                       = false;
    enum msg_hash_enums enum_idx   = MSG_UNKNOWN;
-   struct rarch_state   *p_rarch  = &rarch_st;
-   struct menu_state    *menu_st  = &p_rarch->menu_driver_state;
    file_list_t *list              = MENU_LIST_GET(menu_st->entries.list, 0);
    menu_file_list_cbs_t *cbs      = (menu_file_list_cbs_t*)
       list->list[list->size - 1].actiondata;
@@ -2347,8 +2349,8 @@ static bool menu_driver_displaylist_push(menu_displaylist_ctx_entry_t *entry)
    if (cbs)
       enum_idx    = cbs->enum_idx;
 
-   info.list      = entry->list;
-   info.menu_list = entry->stack;
+   info.list      = entry_list;
+   info.menu_list = entry_stack;
    info.type      = type;
    info.enum_idx  = enum_idx;
 
@@ -2551,13 +2553,12 @@ int generic_menu_entry_action(
 
    if (MENU_ENTRIES_NEEDS_REFRESH(menu_st))
    {
-      menu_displaylist_ctx_entry_t entry;
       bool refresh            = false;
-
-      entry.list              = selection_buf;
-      entry.stack             = menu_stack;
-
-      menu_driver_displaylist_push(&entry);
+      menu_driver_displaylist_push(
+            p_rarch,
+            menu_st,
+            selection_buf,
+            menu_stack);
       menu_entries_ctl(MENU_ENTRIES_CTL_UNSET_REFRESH, &refresh);
    }
 
@@ -4333,7 +4334,6 @@ static bool menu_driver_iterate(
 
 int menu_driver_deferred_push_content_list(file_list_t *list)
 {
-   menu_displaylist_ctx_entry_t entry;
    struct rarch_state   *p_rarch  = &rarch_st;
    struct menu_state    *menu_st  = &p_rarch->menu_driver_state;
    menu_handle_t *menu_data       = p_rarch->menu_driver_data;
@@ -4352,9 +4352,11 @@ int menu_driver_deferred_push_content_list(file_list_t *list)
 
    menu_st->selection_ptr      = 0; 
 
-   entry.list                  = list;
-   entry.stack                 = selection_buf;
-   if (!menu_driver_displaylist_push(&entry))
+   if (!menu_driver_displaylist_push(
+            p_rarch,
+            menu_st,
+            list,
+            selection_buf))
       return -1;
    return 0;
 }
@@ -22876,65 +22878,77 @@ static int16_t input_state_device(
       case RETRO_DEVICE_ANALOG:
          {
 #if defined(HAVE_NETWORKGAMEPAD) || defined(HAVE_OVERLAY)
-#if defined(HAVE_NETWORKGAMEPAD)
-            input_remote_state_t *input_state  = &p_rarch->remote_st_ptr;
-#endif
-            unsigned base                      = (idx == RETRO_DEVICE_INDEX_ANALOG_RIGHT) ? 2 : 0;
-            if (id == RETRO_DEVICE_ID_ANALOG_Y)
-               base                           += 1;
 #ifdef HAVE_NETWORKGAMEPAD
-            /* Don't process binds if input is coming from Remote RetroPad */
-            if (p_rarch->input_driver_remote && input_state
-                  && input_state->analog[base][port])
-               res                             = input_state->analog[base][port];
+            input_remote_state_t 
+               *input_state         = &p_rarch->remote_st_ptr;
+
+#endif
+            unsigned base           = (idx == RETRO_DEVICE_INDEX_ANALOG_RIGHT)
+               ? 2 : 0;
+            if (id == RETRO_DEVICE_ID_ANALOG_Y)
+               base += 1;
+#ifdef HAVE_NETWORKGAMEPAD
+            if (p_rarch->input_driver_remote
+                  && input_state && input_state->analog[base][port])
+               res          = input_state->analog[base][port];
             else
 #endif
 #endif
             {
-               if (input_remap_binds_enable)
+               if (id < RARCH_FIRST_META_KEY)
                {
                   bool bind_valid         = p_rarch->libretro_input_binds[port]
                      && p_rarch->libretro_input_binds[port][id].valid;
-                  if (id < RARCH_FIRST_META_KEY && bind_valid)
-                  {
-                     if (idx < 2 && id < 2)
-                     {
-                        unsigned offset = RARCH_FIRST_CUSTOM_BIND +
-                           (idx * 4) + (id * 2);
 
-                        if (     settings->uints.input_remap_ids
-                              [port][offset]   == offset
-                              || settings->uints.input_remap_ids
-                              [port][offset+1] == (offset+1)
-                           )
+                  if (bind_valid)
+                  {
+                     /* reset_state - used to reset input state of a button
+                      * when the gamepad mapper is in action for that button*/
+                     bool reset_state        = false;
+                     if (input_remap_binds_enable)
+                     {
+                        if (idx < 2 && id < 2)
                         {
-                           res = ret;
-#ifdef HAVE_OVERLAY
-                           if (port == 0)
-                           {
-                              input_overlay_state_t *ol_state =
-                                 &p_rarch->overlay_ptr->overlay_state;
-                              if (     
-                                    p_rarch->overlay_ptr
-                                    && p_rarch->overlay_ptr->alive
-                                    && ol_state
-                                    && ol_state->analog[base])
-                                 res  |= ol_state->analog[base];
-                           }
-#endif
+                           unsigned offset = RARCH_FIRST_CUSTOM_BIND +
+                              (idx * 4) + (id * 2);
+
+                           if (settings->uints.input_remap_ids
+                                 [port][offset]   != offset)
+                              reset_state = true;
+                           else if (settings->uints.input_remap_ids
+                                 [port][offset+1] != (offset+1))
+                              reset_state = true;
                         }
+                     }
+
+                     if (reset_state)
+                        res = 0;
+                     else
+                     {
+                        res = ret;
+
+#ifdef HAVE_OVERLAY
+                        if (  p_rarch->overlay_ptr        &&
+                              p_rarch->overlay_ptr->alive && port == 0)
+                        {
+                           input_overlay_state_t *ol_state =
+                              &p_rarch->overlay_ptr->overlay_state;
+                           if (ol_state->analog[base])
+                              res |= ol_state->analog[base];
+                        }
+#endif
                      }
                   }
                }
             }
 
-            if (p_rarch->input_driver_mapper)
+            if (input_remap_binds_enable)
             {
                if (idx < 2 && id < 2)
                {
-                  unsigned offset  = 0 + (idx * 4) + (id * 2);
-                  int        val1  = p_rarch->input_driver_mapper->analog_value[port][offset];
-                  int        val2  = p_rarch->input_driver_mapper->analog_value[port][offset+1];
+                  unsigned offset = 0 + (idx * 4) + (id * 2);
+                  int        val1 = p_rarch->input_driver_mapper->analog_value[port][offset];
+                  int        val2 = p_rarch->input_driver_mapper->analog_value[port][offset+1];
 
                   if (val1)
                      res          |= val1;
