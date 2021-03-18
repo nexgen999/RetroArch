@@ -5102,42 +5102,6 @@ bool menu_driver_ctl(enum rarch_menu_ctl_state state, void *data)
          menu_entries_flush_stack(NULL, MENU_SETTINGS);
          menu_st->pending_quick_menu = true;
          break;
-      case RARCH_MENU_CTL_FIND_DRIVER:
-         {
-            settings_t *settings = p_rarch->configuration_settings;
-            int i                = (int)driver_find_index(
-                  "menu_driver",
-                  settings->arrays.menu_driver);
-
-            if (i >= 0)
-               p_rarch->menu_driver_ctx = (const menu_ctx_driver_t*)
-                  menu_ctx_drivers[i];
-            else
-            {
-               if (verbosity_is_enabled())
-               {
-                  unsigned d;
-                  RARCH_WARN("Couldn't find any menu driver named \"%s\"\n",
-                        settings->arrays.menu_driver);
-                  RARCH_LOG_OUTPUT("Available menu drivers are:\n");
-                  for (d = 0; menu_ctx_drivers[d]; d++)
-                  {
-                     if (menu_ctx_drivers[d])
-                     {
-                        RARCH_LOG_OUTPUT("\t%s\n", menu_ctx_drivers[d]->ident);
-                     }
-                  }
-                  RARCH_WARN("Going to default to first menu driver...\n");
-               }
-
-               p_rarch->menu_driver_ctx = (const menu_ctx_driver_t*)
-                  menu_ctx_drivers[0];
-
-               if (!p_rarch->menu_driver_ctx)
-                  return false;
-            }
-         }
-         break;
       case RARCH_MENU_CTL_SET_PREVENT_POPULATE:
          menu_st->prevent_populate = true;
          break;
@@ -28477,17 +28441,22 @@ static float audio_driver_monitor_adjust_system_rates(
       struct retro_system_av_info *av_info)
 {
    bool vrr_runloop_enable                = settings->bools.vrr_runloop_enable;
-   const float target_video_sync_rate     =
-      settings->floats.video_refresh_rate / settings->uints.video_swap_interval;
-   float max_timing_skew                  = settings->floats.audio_max_timing_skew;
    const struct retro_system_timing *info =
       (const struct retro_system_timing*)&av_info->timing;
-   float timing_skew                      =
-      fabs(1.0f - info->fps / target_video_sync_rate);
    float ret                              = info->sample_rate;
 
-   if (timing_skew <= max_timing_skew && !vrr_runloop_enable)
-      ret        *= target_video_sync_rate / info->fps;
+   if (!vrr_runloop_enable)
+   {
+      const float target_video_sync_rate     =
+           settings->floats.video_refresh_rate 
+         / settings->uints.video_swap_interval;
+      float max_timing_skew                  = 
+         settings->floats.audio_max_timing_skew;
+      float timing_skew                      =
+         fabs(1.0f - info->fps / target_video_sync_rate);
+      if (timing_skew <= max_timing_skew && !vrr_runloop_enable)
+         ret        *= target_video_sync_rate / info->fps;
+   }
    return ret;
 }
 
@@ -30597,7 +30566,6 @@ void video_driver_cached_frame(void)
 static void video_driver_monitor_adjust_system_rates(
       struct rarch_state *p_rarch)
 {
-   float timing_skew                      = 0.0f;
    settings_t *settings                   = p_rarch->configuration_settings;
    const struct retro_system_timing *info = (const struct retro_system_timing*)
       &p_rarch->video_driver_av_info.timing;
@@ -30613,11 +30581,11 @@ static void video_driver_monitor_adjust_system_rates(
 
    if (p_rarch->video_driver_crt_switching_active)
       timing_skew_hz                       = p_rarch->video_driver_core_hz;
-   timing_skew                             = fabs(
-         1.0f - info->fps / timing_skew_hz);
 
    if (!vrr_runloop_enable)
    {
+      float timing_skew                    = fabs(
+            1.0f - info->fps / timing_skew_hz);
       /* We don't want to adjust pitch too much. If we have extreme cases,
        * just don't readjust at all. */
       if (timing_skew <= audio_max_timing_skew)
@@ -34949,6 +34917,47 @@ static void retroarch_validate_cpu_features(void)
 #endif
 }
 
+#ifdef HAVE_MENU
+static bool find_menu_driver(
+      struct rarch_state *p_rarch,
+      settings_t *settings)
+{
+   int i                = (int)driver_find_index(
+         "menu_driver",
+         settings->arrays.menu_driver);
+
+   if (i >= 0)
+      p_rarch->menu_driver_ctx = (const menu_ctx_driver_t*)
+         menu_ctx_drivers[i];
+   else
+   {
+      if (verbosity_is_enabled())
+      {
+         unsigned d;
+         RARCH_WARN("Couldn't find any menu driver named \"%s\"\n",
+               settings->arrays.menu_driver);
+         RARCH_LOG_OUTPUT("Available menu drivers are:\n");
+         for (d = 0; menu_ctx_drivers[d]; d++)
+         {
+            if (menu_ctx_drivers[d])
+            {
+               RARCH_LOG_OUTPUT("\t%s\n", menu_ctx_drivers[d]->ident);
+            }
+         }
+         RARCH_WARN("Going to default to first menu driver...\n");
+      }
+
+      p_rarch->menu_driver_ctx = (const menu_ctx_driver_t*)
+         menu_ctx_drivers[0];
+
+      if (!p_rarch->menu_driver_ctx)
+         return false;
+   }
+
+   return true;
+}
+#endif
+
 /**
  * retroarch_main_init:
  * @argc                 : Count of (commandline) arguments.
@@ -35114,7 +35123,7 @@ bool retroarch_main_init(int argc, char *argv[])
    wifi_driver_ctl(RARCH_WIFI_CTL_FIND_DRIVER, NULL);
    find_location_driver(p_rarch);
 #ifdef HAVE_MENU
-   menu_driver_ctl(RARCH_MENU_CTL_FIND_DRIVER, NULL);
+   find_menu_driver(p_rarch, p_rarch->configuration_settings);
 #endif
 
    /* Attempt to initialize core */
