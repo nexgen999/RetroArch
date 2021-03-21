@@ -429,10 +429,10 @@ static void *video_thread_get_ptr(struct rarch_state *p_rarch)
  *
  * Returns: video driver's userdata.
  **/
-void *video_driver_get_ptr(bool force_nonthreaded_data)
+void *video_driver_get_ptr(void)
 {
    struct rarch_state *p_rarch = &rarch_st;
-   return VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, force_nonthreaded_data);
+   return VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch);
 }
 
 void *video_driver_get_data(void)
@@ -901,7 +901,8 @@ static int menu_input_key_bind_set_mode_common(
       struct menu_state *menu_st,
       struct menu_bind_state *binds,
       enum menu_input_binds_ctl_state state,
-      rarch_setting_t  *setting)
+      rarch_setting_t  *setting,
+      settings_t *settings)
 {
    menu_displaylist_info_t info;
    unsigned bind_type             = 0;
@@ -954,7 +955,7 @@ static int menu_input_key_bind_set_mode_common(
          return 0;
    }
 
-   if (menu_displaylist_ctl(DISPLAYLIST_INFO, &info))
+   if (menu_displaylist_ctl(DISPLAYLIST_INFO, &info, settings))
       menu_displaylist_process(&info);
    menu_displaylist_info_free(&info);
 
@@ -1341,7 +1342,7 @@ bool menu_input_key_bind_set_mode(
    if (!setting || !menu)
       return false;
    if (menu_input_key_bind_set_mode_common(&p_rarch->menu_driver_state,
-            binds, state, setting) == -1)
+            binds, state, setting, settings) == -1)
       return false;
 
    index_offset             = setting->index_offset;
@@ -1820,6 +1821,7 @@ static void menu_input_set_pointer_visibility(
  **/
 static int generic_menu_iterate(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       menu_handle_t *menu,
       void *userdata, enum menu_action action,
       retro_time_t current_time)
@@ -2128,7 +2130,7 @@ static int generic_menu_iterate(
                if (label)
                   info.label             = strdup(label);
 
-               menu_displaylist_ctl(DISPLAYLIST_HELP, &info);
+               menu_displaylist_ctl(DISPLAYLIST_HELP, &info, settings);
             }
          }
          break;
@@ -2176,27 +2178,28 @@ static int generic_menu_iterate(
 
 static bool menu_driver_displaylist_push_internal(
       const char *label,
-      menu_displaylist_info_t *info)
+      menu_displaylist_info_t *info,
+      settings_t *settings)
 {
    if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_HISTORY_TAB)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_HISTORY, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_HISTORY, info, settings))
          return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_FAVORITES_TAB)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_FAVORITES, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_FAVORITES, info, settings))
          return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_SETTINGS_TAB)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_SETTINGS_ALL, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_SETTINGS_ALL, info, settings))
          return true;
    }
 #ifdef HAVE_CHEATS
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_CHEAT_SEARCH_SETTINGS)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_CHEAT_SEARCH_SETTINGS_LIST, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_CHEAT_SEARCH_SETTINGS_LIST, info, settings))
          return true;
    }
 #endif
@@ -2215,7 +2218,7 @@ static bool menu_driver_displaylist_push_internal(
             msg_hash_to_str(MENU_ENUM_LABEL_PLAYLISTS_TAB));
 
       menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
-      menu_displaylist_ctl(DISPLAYLIST_MUSIC_HISTORY, info);
+      menu_displaylist_ctl(DISPLAYLIST_MUSIC_HISTORY, info, settings);
       return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_VIDEO_TAB)))
@@ -2233,7 +2236,7 @@ static bool menu_driver_displaylist_push_internal(
             msg_hash_to_str(MENU_ENUM_LABEL_PLAYLISTS_TAB));
 
       menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
-      menu_displaylist_ctl(DISPLAYLIST_VIDEO_HISTORY, info);
+      menu_displaylist_ctl(DISPLAYLIST_VIDEO_HISTORY, info, settings);
       return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_IMAGES_TAB)))
@@ -2264,7 +2267,7 @@ static bool menu_driver_displaylist_push_internal(
          info->need_push_no_playlist_entries = true;
 #endif
 #endif
-      menu_displaylist_ctl(DISPLAYLIST_IMAGES_HISTORY, info);
+      menu_displaylist_ctl(DISPLAYLIST_IMAGES_HISTORY, info, settings);
       return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_PLAYLISTS_TAB)))
@@ -2301,29 +2304,29 @@ static bool menu_driver_displaylist_push_internal(
       info->path = strdup(dir_playlist);
 
       if (menu_displaylist_ctl(
-               DISPLAYLIST_DATABASE_PLAYLISTS, info))
+               DISPLAYLIST_DATABASE_PLAYLISTS, info, settings))
          return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_ADD_TAB)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_SCAN_DIRECTORY_LIST, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_SCAN_DIRECTORY_LIST, info, settings))
          return true;
    }
 #if defined(HAVE_LIBRETRODB)
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_EXPLORE_TAB)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_EXPLORE, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_EXPLORE, info, settings))
          return true;
    }
 #endif
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_NETPLAY_TAB)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_NETPLAY_ROOM_LIST, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_NETPLAY_ROOM_LIST, info, settings))
          return true;
    }
    else if (string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_HORIZONTAL_MENU)))
    {
-      if (menu_displaylist_ctl(DISPLAYLIST_HORIZONTAL, info))
+      if (menu_displaylist_ctl(DISPLAYLIST_HORIZONTAL, info, settings))
          return true;
    }
 
@@ -2333,6 +2336,7 @@ static bool menu_driver_displaylist_push_internal(
 static bool menu_driver_displaylist_push(
       struct rarch_state *p_rarch,
       struct menu_state *menu_st,
+      settings_t *settings,
       file_list_t *entry_list,
       file_list_t *entry_stack)
 {
@@ -2368,7 +2372,7 @@ static bool menu_driver_displaylist_push(
    if (!info.list)
       goto error;
 
-   if (menu_driver_displaylist_push_internal(label, &info))
+   if (menu_driver_displaylist_push_internal(label, &info, settings))
    {
       ret = menu_displaylist_process(&info);
       goto end;
@@ -2562,6 +2566,7 @@ int generic_menu_entry_action(
       menu_driver_displaylist_push(
             p_rarch,
             menu_st,
+            settings,
             selection_buf,
             menu_stack);
       menu_entries_ctl(MENU_ENTRIES_CTL_UNSET_REFRESH, &refresh);
@@ -4327,12 +4332,14 @@ void menu_display_powerstate(gfx_display_ctx_powerstate_t *powerstate)
 /* Iterate the menu driver for one frame. */
 static bool menu_driver_iterate(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       enum menu_action action,
       retro_time_t current_time)
 {
    return (p_rarch->menu_driver_data && 
          generic_menu_iterate(
             p_rarch,
+            settings,
             p_rarch->menu_driver_data,
             p_rarch->menu_userdata, action,
             current_time) != -1);
@@ -4341,6 +4348,7 @@ static bool menu_driver_iterate(
 int menu_driver_deferred_push_content_list(file_list_t *list)
 {
    struct rarch_state   *p_rarch  = &rarch_st;
+   settings_t *settings           = p_rarch->configuration_settings;
    struct menu_state    *menu_st  = &p_rarch->menu_driver_state;
    menu_handle_t *menu_data       = p_rarch->menu_driver_data;
    menu_list_t *menu_list         = menu_st->entries.list;
@@ -4361,6 +4369,7 @@ int menu_driver_deferred_push_content_list(file_list_t *list)
    if (!menu_driver_displaylist_push(
             p_rarch,
             menu_st,
+            settings,
             list,
             selection_buf))
       return -1;
@@ -4396,7 +4405,8 @@ static enum menu_driver_id_type menu_driver_set_id(const char *driver_name)
    return MENU_DRIVER_ID_UNKNOWN;
 }
 
-static bool generic_menu_init_list(struct menu_state *menu_st)
+static bool generic_menu_init_list(struct menu_state *menu_st,
+      settings_t *settings)
 {
    menu_displaylist_info_t info;
    menu_list_t *menu_list       = menu_st->entries.list;
@@ -4423,7 +4433,7 @@ static bool generic_menu_init_list(struct menu_state *menu_st)
 
    info.list                    = selection_buf;
 
-   if (menu_displaylist_ctl(DISPLAYLIST_MAIN_MENU, &info))
+   if (menu_displaylist_ctl(DISPLAYLIST_MAIN_MENU, &info, settings))
       menu_displaylist_process(&info);
 
    menu_displaylist_info_free(&info);
@@ -4480,7 +4490,7 @@ static bool menu_driver_init_internal(
          return false;
    }
    else
-      generic_menu_init_list(&p_rarch->menu_driver_state);
+      generic_menu_init_list(&p_rarch->menu_driver_state, settings);
 
    return true;
 }
@@ -25886,16 +25896,14 @@ static const char *input_config_get_prefix(unsigned user, bool meta)
       "input_player15",
       "input_player16",
    };
-   const char *prefix = bind_user_prefix[user];
-
-   if (user == 0)
-      return meta ? "input" : prefix;
-
-   if (!meta)
-      return prefix;
-
-   /* Don't bother with meta bind for anyone else than first user. */
-   return NULL;
+   if (meta)
+   {
+      if (user == 0)
+         return "input";
+      /* Don't bother with meta bind for anyone else than first user. */
+      return NULL;
+   }
+   return bind_user_prefix[user];
 }
 
 /**
@@ -29485,7 +29493,7 @@ const char *video_driver_get_ident(void)
 #ifdef HAVE_THREADS
    if (VIDEO_DRIVER_IS_THREADED_INTERNAL())
    {
-      const thread_video_t *thr   = (const thread_video_t*)VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, true);
+      const thread_video_t *thr   = (const thread_video_t*)p_rarch->video_driver_data;
       if (!thr || !thr->driver)
          return NULL;
       return thr->driver->ident;
@@ -31812,7 +31820,7 @@ void video_driver_build_info(video_frame_info_t *video_info)
    video_info->input_driver_nonblock_state = p_rarch->input_driver_nonblock_state;
    video_info->input_driver_grab_mouse_state = p_rarch->input_driver_grab_mouse_state;
 
-   video_info->userdata                    = VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, false);
+   video_info->userdata                    = VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch);
 
 #ifdef HAVE_THREADS
    VIDEO_DRIVER_THREADED_UNLOCK(is_threaded);
@@ -32662,7 +32670,7 @@ static void driver_adjust_system_rates(struct rarch_state *p_rarch)
 
    video_driver_monitor_adjust_system_rates(p_rarch);
 
-   if (!VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, false))
+   if (!VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch))
       return;
 
    if (p_rarch->runloop_force_nonblock)
@@ -32704,7 +32712,7 @@ void driver_set_nonblock_state(void)
    bool runloop_force_nonblock = p_rarch->runloop_force_nonblock;
 
    /* Only apply non-block-state for video if we're using vsync. */
-   if (video_driver_active && VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, false))
+   if (video_driver_active && VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch))
    {
       if (p_rarch->current_video->set_nonblock_state)
       {
@@ -37293,7 +37301,8 @@ static enum runloop_state runloop_check_state(
          menu_st->selection_ptr      = 0;
          menu_st->pending_quick_menu = false;
       }
-      else if (!menu_driver_iterate(p_rarch, action, current_time))
+      else if (!menu_driver_iterate(p_rarch, settings,
+               action, current_time))
       {
          if (p_rarch->rarch_error_on_init)
          {
