@@ -414,8 +414,7 @@ global_t *global_get_ptr(void)
  **/
 static void *video_thread_get_ptr(struct rarch_state *p_rarch)
 {
-   void *data                  = VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, true);
-   const thread_video_t *thr   = (const thread_video_t*)data;
+   const thread_video_t *thr   = (const thread_video_t*)p_rarch->video_driver_data;
    if (thr)
       return thr->driver_data;
    return NULL;
@@ -434,6 +433,12 @@ void *video_driver_get_ptr(bool force_nonthreaded_data)
 {
    struct rarch_state *p_rarch = &rarch_st;
    return VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, force_nonthreaded_data);
+}
+
+void *video_driver_get_data(void)
+{
+   struct rarch_state *p_rarch = &rarch_st;
+   return p_rarch->video_driver_data;
 }
 
 static int16_t input_state_wrap(
@@ -3805,7 +3810,8 @@ static bool menu_init(
 
    /* Ensure that menu pointer input is correctly
     * initialised */
-   menu_input_reset(menu_input, pointer_hw_state);
+   memset(menu_input, 0, sizeof(menu_input_t));
+   memset(pointer_hw_state, 0, sizeof(menu_input_pointer_hw_state_t));
 
    if (!menu_entries_init(menu_st, menu_driver_ctx))
    {
@@ -5140,10 +5146,8 @@ bool menu_driver_ctl(enum rarch_menu_ctl_state state, void *data)
             for (i = 0; i < SCROLL_INDEX_SIZE; i++)
                menu_st->scroll.index_list[i] = 0;
 
-            menu_input_reset(
-                  &p_rarch->menu_input_state,
-                  &p_rarch->menu_input_pointer_hw_state
-                  );
+            memset(&p_rarch->menu_input_state, 0, sizeof(menu_input_t));
+            memset(&p_rarch->menu_input_pointer_hw_state, 0, sizeof(menu_input_pointer_hw_state_t));
 
             if (     p_rarch->menu_driver_ctx 
                   && p_rarch->menu_driver_ctx->free)
@@ -21647,7 +21651,7 @@ static void input_overlay_loaded(retro_task_t *task,
    ol->size       = data->size;
    ol->active     = data->active;
    ol->iface      = iface;
-   ol->iface_data = VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, true);
+   ol->iface_data = p_rarch->video_driver_data;
 
    input_overlay_load_active(p_rarch, ol, data->overlay_opacity);
 
@@ -23046,12 +23050,9 @@ static int16_t input_state(unsigned port, unsigned device,
             (id == RETRO_DEVICE_ID_JOYPAD_MASK))
       {
          unsigned i;
-
-         {
-            for (i = 0; i < RARCH_FIRST_CUSTOM_BIND; i++)
-               if (input_state_device(p_rarch, ret, port, device, idx, i, true))
-                  result |= (1 << i);
-         }
+         for (i = 0; i < RARCH_FIRST_CUSTOM_BIND; i++)
+            if (input_state_device(p_rarch, ret, port, device, idx, i, true))
+               result |= (1 << i);
       }
       else
          result = input_state_device(p_rarch, ret, port, device, idx, id, false);
@@ -23273,12 +23274,12 @@ static void menu_input_get_mouse_hw_state(
       /* RGUI uses a framebuffer texture + custom viewports,
        * which means we have to convert from screen space to
        * menu space... */
-      size_t fb_pitch;
-      unsigned fb_width, fb_height;
       struct video_viewport vp = {0};
-
+      gfx_display_t *p_disp    = &p_rarch->dispgfx;
       /* Read display/framebuffer info */
-      gfx_display_get_fb_size(&fb_width, &fb_height, &fb_pitch);
+      unsigned fb_width        = p_disp->framebuf_width;
+      unsigned fb_height       = p_disp->framebuf_height;
+
       video_driver_get_viewport_info(&vp);
 
       /* Adjust X pos */
@@ -23338,7 +23339,6 @@ static void menu_input_get_touchscreen_hw_state(
       menu_input_pointer_hw_state_t *hw_state)
 {
    rarch_joypad_info_t joypad_info;
-   size_t fb_pitch;
    unsigned fb_width, fb_height;
    int pointer_x                                = 0;
    int pointer_y                                = 0;
@@ -23367,6 +23367,7 @@ static void menu_input_get_touchscreen_hw_state(
    const input_device_driver_t 
       *sec_joypad                               = NULL;
 #endif
+   gfx_display_t *p_disp    = &p_rarch->dispgfx;
 
    /* Easiest to set inactive by default, and toggle
     * when input is detected */
@@ -23401,7 +23402,8 @@ static void menu_input_get_touchscreen_hw_state(
     * menu drivers like RGUI. Touchscreen input as a whole should
     * NOT be dependent on this
     */
-   gfx_display_get_fb_size(&fb_width, &fb_height, &fb_pitch);
+   fb_width                   = p_disp->framebuf_width;
+   fb_height                  = p_disp->framebuf_height;
 
    joypad_info.joy_idx        = 0;
    joypad_info.auto_binds     = NULL;
@@ -23920,15 +23922,6 @@ void menu_input_set_pointer_y_accel(float y_accel)
    menu_input->pointer.y_accel    = y_accel;
 }
 
-static void menu_input_reset(
-      menu_input_t *menu_input,
-      menu_input_pointer_hw_state_t *pointer_hw_state
-      )
-{
-   memset(menu_input, 0, sizeof(menu_input_t));
-   memset(pointer_hw_state, 0, sizeof(menu_input_pointer_hw_state_t));
-}
-
 static float menu_input_get_dpi(struct rarch_state *p_rarch)
 {
    static unsigned last_video_width  = 0;
@@ -23971,14 +23964,11 @@ static float menu_input_get_dpi(struct rarch_state *p_rarch)
             menu->driver_ctx
          && menu->driver_ctx->set_texture;
 
+      /* Read framebuffer info? */
       if (menu_has_fb)
       {
-         size_t fb_pitch;
-         unsigned fb_width, fb_height;
-
-         /* Read framebuffer info */
-         gfx_display_get_fb_size(&fb_width, &fb_height, &fb_pitch);
-
+         gfx_display_t *p_disp      = &p_rarch->dispgfx;
+         unsigned fb_height         = p_disp->framebuf_height;
          /* Rationale for current 'DPI' determination method:
           * - Divide screen height by DPI, to get number of vertical
           *   '1 inch' squares
@@ -25951,48 +25941,40 @@ unsigned input_config_translate_str_to_bind_id(const char *str)
    return RARCH_BIND_LIST_END;
 }
 
-static void parse_hat(struct retro_keybind *bind, const char *str)
+static uint16_t input_config_parse_hat(const char *dir)
 {
-   uint16_t hat_dir = 0;
-   char        *dir = NULL;
-   uint16_t     hat = strtoul(str, &dir, 0);
-
-   if (!dir)
-   {
-      RARCH_WARN("[Input]: Found invalid hat in config!\n");
-      return;
-   }
-
    if (     dir[0] == 'u'
          && dir[1] == 'p'
          && dir[2] == '\0'
       )
-      hat_dir = HAT_UP_MASK;
-   else if (     dir[0] == 'd'
-              && dir[1] == 'o'
-              && dir[2] == 'w'
-              && dir[3] == 'n'
-              && dir[4] == '\0'
-      )
-      hat_dir = HAT_DOWN_MASK;
-   else if (     dir[0] == 'l'
-              && dir[1] == 'e'
-              && dir[2] == 'f'
-              && dir[3] == 't'
-              && dir[4] == '\0'
-      )
-      hat_dir = HAT_LEFT_MASK;
-   else if (     dir[0] == 'r'
-              && dir[1] == 'i'
-              && dir[2] == 'g'
-              && dir[3] == 'h'
-              && dir[4] == 't'
-              && dir[5] == '\0'
-      )
-      hat_dir = HAT_RIGHT_MASK;
+      return HAT_UP_MASK;
+   else if (     
+            dir[0] == 'd'
+         && dir[1] == 'o'
+         && dir[2] == 'w'
+         && dir[3] == 'n'
+         && dir[4] == '\0'
+         )
+      return HAT_DOWN_MASK;
+   else if (     
+            dir[0] == 'l'
+         && dir[1] == 'e'
+         && dir[2] == 'f'
+         && dir[3] == 't'
+         && dir[4] == '\0'
+         )
+      return HAT_LEFT_MASK;
+   else if (     
+            dir[0] == 'r'
+         && dir[1] == 'i'
+         && dir[2] == 'g'
+         && dir[3] == 'h'
+         && dir[4] == 't'
+         && dir[5] == '\0'
+         )
+      return HAT_RIGHT_MASK;
 
-   if (hat_dir)
-      bind->joykey = HAT_MAP(hat, hat_dir);
+   return 0;
 }
 
 static void input_config_parse_joy_button(
@@ -26028,8 +26010,15 @@ static void input_config_parse_joy_button(
          if (*btn == 'h')
          {
             const char *str = btn + 1;
+            /* Parse hat? */
             if (str && ISDIGIT((int)*str))
-               parse_hat(bind, str);
+            {
+               char        *dir = NULL;
+               uint16_t     hat = strtoul(str, &dir, 0);
+               uint16_t hat_dir = dir ? input_config_parse_hat(dir) : 0;
+               if (hat_dir)
+                  bind->joykey = HAT_MAP(hat, hat_dir);
+            }
          }
          else
             bind->joykey = strtoull(tmp, NULL, 0);
@@ -26369,7 +26358,7 @@ unsigned input_config_get_device_count(void)
 /* Adds an index to devices with the same name,
  * so they can be uniquely identified in the
  * frontend */
-static void input_config_reindex_device_names(void)
+static void input_config_reindex_device_names(struct rarch_state *p_rarch)
 {
    unsigned i;
    unsigned j;
@@ -26377,7 +26366,7 @@ static void input_config_reindex_device_names(void)
 
    /* Reset device name indices */
    for (i = 0; i < MAX_INPUT_DEVICES; i++)
-      input_config_set_device_name_index(i, 0);
+      p_rarch->input_device_info[i].name_index       = 0;
 
    /* Scan device names */
    for (i = 0; i < MAX_INPUT_DEVICES; i++)
@@ -26387,8 +26376,9 @@ static void input_config_reindex_device_names(void)
       /* If current device name is empty, or a non-zero
        * name index has already been assigned, continue
        * to the next device */
-      if (string_is_empty(device_name) ||
-          (input_config_get_device_name_index(i) != 0))
+      if (
+               string_is_empty(device_name)
+            || p_rarch->input_device_info[i].name_index != 0)
          continue;
 
       /* > Uniquely named devices have a name index
@@ -26411,13 +26401,13 @@ static void input_config_reindex_device_names(void)
          {
             /* If this is the first match, set a starting
              * index for the current device selection */
-            if (input_config_get_device_name_index(i) == 0)
-               input_config_set_device_name_index(i, name_index++);
+            if (p_rarch->input_device_info[i].name_index == 0)
+               p_rarch->input_device_info[i].name_index       = name_index++;
 
             /* Set name index for the next device
              * (will keep incrementing as more matches
              *  are found) */
-            input_config_set_device_name_index(j, name_index++);
+            p_rarch->input_device_info[j].name_index          = name_index++;
          }
       }
    }
@@ -26517,7 +26507,7 @@ void input_config_set_device_name(unsigned port, const char *name)
    strlcpy(p_rarch->input_device_info[port].name, name,
          sizeof(p_rarch->input_device_info[port].name));
 
-   input_config_reindex_device_names();
+   input_config_reindex_device_names(p_rarch);
 }
 
 void input_config_set_device_display_name(unsigned port, const char *name)
@@ -26591,7 +26581,7 @@ void input_config_clear_device_name(unsigned port)
 {
    struct rarch_state *p_rarch = &rarch_st;
    p_rarch->input_device_info[port].name[0] = '\0';
-   input_config_reindex_device_names();
+   input_config_reindex_device_names(p_rarch);
 }
 
 void input_config_clear_device_display_name(unsigned port)
@@ -26702,15 +26692,15 @@ void input_config_reset(void)
        * here, since this will re-index devices each time
        * (not required - we are setting all 'name indices'
        * to zero manually) */
-      p_rarch->input_device_info[i].name[0] = '\0';
-      input_config_clear_device_display_name(i);
-      input_config_clear_device_config_path(i);
-      input_config_clear_device_config_name(i);
-      input_config_clear_device_joypad_driver(i);
-      input_config_set_device_vid(i, 0);
-      input_config_set_device_pid(i, 0);
-      input_config_set_device_autoconfigured(i, false);
-      input_config_set_device_name_index(i, 0);
+      p_rarch->input_device_info[i].name[0]          = '\0';
+      p_rarch->input_device_info[i].display_name[0]  = '\0';
+      p_rarch->input_device_info[i].config_path[0]   = '\0';
+      p_rarch->input_device_info[i].config_name[0]   = '\0';
+      p_rarch->input_device_info[i].joypad_driver[0] = '\0';
+      p_rarch->input_device_info[i].vid              = 0;
+      p_rarch->input_device_info[i].pid              = 0;
+      p_rarch->input_device_info[i].autoconfigured   = false;
+      p_rarch->input_device_info[i].name_index       = 0;
 
       input_config_reset_autoconfig_binds(i);
 
@@ -32300,7 +32290,7 @@ bool video_driver_cached_frame_has_valid_framebuffer(void)
 bool video_shader_driver_get_current_shader(video_shader_ctx_t *shader)
 {
    struct rarch_state              *p_rarch = &rarch_st;
-   void *video_driver                       = VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch, true);
+   void *video_driver                       = p_rarch->video_driver_data;
    const video_poke_interface_t *video_poke = p_rarch->video_driver_poke;
 
    shader->data = NULL;
