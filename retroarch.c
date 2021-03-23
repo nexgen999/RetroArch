@@ -607,6 +607,23 @@ static bool driver_find_next(const char *label, char *s, size_t len)
    return false;
 }
 
+void input_keyboard_mapping_bits(unsigned mode, unsigned key)
+{
+   struct rarch_state *p_rarch    = &rarch_st;
+   switch (mode)
+   {
+      case 0:
+         BIT512_CLEAR_PTR(&p_rarch->keyboard_mapping_bits, key);
+         break;
+      case 1:
+         BIT512_SET_PTR(&p_rarch->keyboard_mapping_bits, key);
+         break;
+      default:
+         break;
+   }
+}
+
+
 #ifdef HAVE_MENU
 static int menu_dialog_iterate(
       menu_dialog_t *p_dialog,
@@ -841,22 +858,6 @@ void menu_dialog_set_current_id(unsigned id)
    p_dialog->current_id    = id;
 }
 
-void input_keyboard_mapping_bits(unsigned mode, unsigned key)
-{
-   struct rarch_state *p_rarch    = &rarch_st;
-   switch (mode)
-   {
-      case 0:
-         BIT512_CLEAR_PTR(&p_rarch->keyboard_mapping_bits, key);
-         break;
-      case 1:
-         BIT512_SET_PTR(&p_rarch->keyboard_mapping_bits, key);
-         break;
-      default:
-         break;
-   }
-}
-
 static bool menu_input_key_bind_custom_bind_keyboard_cb(
       void *data, unsigned code)
 {
@@ -868,13 +869,13 @@ static bool menu_input_key_bind_custom_bind_keyboard_cb(
    uint64_t input_bind_timeout_us = settings->uints.input_bind_timeout * 1000000;
 
    /* Clear old mapping bit */
-   input_keyboard_mapping_bits(0, binds->buffer.key);
+   BIT512_CLEAR_PTR(&p_rarch->keyboard_mapping_bits, binds->buffer.key);
 
    /* store key in bind */
    binds->buffer.key = (enum retro_key)code;
 
    /* Store new mapping bit */
-   input_keyboard_mapping_bits(1, binds->buffer.key);
+   BIT512_SET_PTR(&p_rarch->keyboard_mapping_bits, binds->buffer.key);
 
    /* write out the bind */
    *(binds->output)  = binds->buffer;
@@ -9919,6 +9920,29 @@ bool gfx_widgets_ready(void)
 #endif
 }
 
+static void osk_update_last_codepoint(
+      unsigned *last_codepoint,
+      unsigned *last_codepoint_len,
+      const char *word)
+{
+   const char *letter         = word;
+   const char    *pos         = letter;
+
+   for (;;)
+   {
+      unsigned codepoint      = utf8_walk(&letter);
+      if (letter[0] == 0)
+      {
+         *last_codepoint      = codepoint;
+         *last_codepoint_len  = (unsigned)(letter - pos);
+         break;
+      }
+      pos                     = letter;
+   }
+}
+
+
+
 #ifdef HAVE_MENU
 static void menu_input_search_cb(void *userdata, const char *str)
 {
@@ -10101,28 +10125,6 @@ bool menu_input_dialog_start(menu_input_ctx_line_t *line)
 
    return true;
 }
-
-static void osk_update_last_codepoint(
-      unsigned *last_codepoint,
-      unsigned *last_codepoint_len,
-      const char *word)
-{
-   const char *letter         = word;
-   const char    *pos         = letter;
-
-   for (;;)
-   {
-      unsigned codepoint      = utf8_walk(&letter);
-      if (letter[0] == 0)
-      {
-         *last_codepoint      = codepoint;
-         *last_codepoint_len  = (unsigned)(letter - pos);
-         break;
-      }
-      pos                     = letter;
-   }
-}
-
 
 bool menu_input_dialog_get_display_kb(void)
 {
@@ -22325,7 +22327,7 @@ static void input_driver_poll(void)
       input_overlay_t *overlay_pointer = (input_overlay_t*)p_rarch->overlay_ptr;
       bool poll_overlay                = (p_rarch->overlay_ptr && p_rarch->overlay_ptr->alive);
 #endif
-      input_mapper_t *handle           = p_rarch->input_driver_mapper;
+      input_mapper_t *handle           = &p_rarch->input_driver_mapper;
       const input_device_driver_t *joypad_driver 
                                        = p_rarch->joypad;
 
@@ -22651,6 +22653,7 @@ static int16_t input_state_device(
    int16_t res                   = 0;
    settings_t *settings          = p_rarch->configuration_settings;
    bool input_remap_binds_enable = settings->bools.input_remap_binds_enable;
+   input_mapper_t *handle        = &p_rarch->input_driver_mapper;
 
    switch (device)
    {
@@ -22687,7 +22690,7 @@ static int16_t input_state_device(
 
                   }
 
-                  if (BIT256_GET(p_rarch->input_driver_mapper->buttons[port], id))
+                  if (BIT256_GET(handle->buttons[port], id))
                      res = 1;
                }
 
@@ -22829,7 +22832,7 @@ static int16_t input_state_device(
             }
 #endif
             if (input_remap_binds_enable)
-               if (MAPPER_GET_KEY(p_rarch->input_driver_mapper, id))
+               if (MAPPER_GET_KEY(handle, id))
                   res |= 1;
          }
 
@@ -22908,8 +22911,8 @@ static int16_t input_state_device(
                if (idx < 2 && id < 2)
                {
                   unsigned offset = 0 + (idx * 4) + (id * 2);
-                  int        val1 = p_rarch->input_driver_mapper->analog_value[port][offset];
-                  int        val2 = p_rarch->input_driver_mapper->analog_value[port][offset+1];
+                  int        val1 = handle->analog_value[port][offset];
+                  int        val2 = handle->analog_value[port][offset+1];
 
                   if (val1)
                      res          |= val1;
@@ -25784,12 +25787,12 @@ void input_keyboard_event(bool down, unsigned code,
       if (!p_rarch->game_focus_state.enabled &&
             BIT512_GET(p_rarch->keyboard_mapping_bits, code))
       {
-         input_mapper_t *handle      = p_rarch->input_driver_mapper;
+         input_mapper_t *handle      = &p_rarch->input_driver_mapper;
          struct retro_keybind hotkey = input_config_binds[0][RARCH_ENABLE_HOTKEY];
          bool hotkey_pressed         =
                (p_rarch->input_hotkey_block_counter > 0) || (hotkey.key == code);
 
-         if (!(handle && MAPPER_GET_KEY(handle, code)) &&
+         if (!(MAPPER_GET_KEY(handle, code)) &&
                !(!hotkey_pressed && (
                   hotkey.key     != RETROK_UNKNOWN ||
                   hotkey.joykey  != NO_BTN ||
@@ -25849,31 +25852,6 @@ uint8_t input_config_bind_map_get_retro_key(unsigned i)
    if (!keybind)
       return 0;
    return keybind->retro_key;
-}
-
-static void input_config_parse_key(
-      config_file_t *conf,
-      const char *prefix, const char *btn,
-      struct retro_keybind *bind)
-{
-   char key[64];
-   struct config_entry_list *entry = NULL;
-
-   key[0] = '\0';
-
-   fill_pathname_join_delim(key, prefix, btn, '_', sizeof(key));
-
-   /* Clear old mapping bit */
-   input_keyboard_mapping_bits(0, bind->key);
-
-   if (
-            (entry = config_get_entry(conf, key))
-         && (!string_is_empty(entry->value))
-      )
-      bind->key = input_config_translate_str_to_rk(entry->value);
-
-   /* Store mapping bit */
-   input_keyboard_mapping_bits(1, bind->key);
 }
 
 static const char *input_config_get_prefix(unsigned user, bool meta)
@@ -25986,22 +25964,20 @@ static uint16_t input_config_parse_hat(const char *dir)
 }
 
 static void input_config_parse_joy_button(
+      char *s,
       config_file_t *conf, const char *prefix,
       const char *btn, struct retro_keybind *bind)
 {
-   char str[256];
    char tmp[64];
    char key[64];
    char key_label[64];
    struct config_entry_list *tmp_a         = NULL;
 
-   str[0] = tmp[0] = key[0] = key_label[0] = '\0';
+   tmp[0] = key[0] = key_label[0] = '\0';
 
-   fill_pathname_join_delim(str, prefix, btn,
-         '_', sizeof(str));
-   fill_pathname_join_delim(key, str,
+   fill_pathname_join_delim(key, s,
          "btn", '_', sizeof(key));
-   fill_pathname_join_delim(key_label, str,
+   fill_pathname_join_delim(key_label, s,
          "btn_label", '_', sizeof(key_label));
 
    if (config_get_array(conf, key, tmp, sizeof(tmp)))
@@ -26045,22 +26021,20 @@ static void input_config_parse_joy_button(
 }
 
 static void input_config_parse_joy_axis(
+      char *s,
       config_file_t *conf, const char *prefix,
       const char *axis, struct retro_keybind *bind)
 {
-   char str[256];
    char       tmp[64];
    char       key[64];
    char key_label[64];
    struct config_entry_list *tmp_a         = NULL;
 
-   str[0] = tmp[0] = key[0] = key_label[0] = '\0';
+   tmp[0] = key[0] = key_label[0] = '\0';
 
-   fill_pathname_join_delim(str, prefix, axis,
-         '_', sizeof(str));
-   fill_pathname_join_delim(key, str,
+   fill_pathname_join_delim(key, s,
          "axis", '_', sizeof(key));
-   fill_pathname_join_delim(key_label, str,
+   fill_pathname_join_delim(key_label, s,
          "axis_label", '_', sizeof(key_label));
 
    if (config_get_array(conf, key, tmp, sizeof(tmp)))
@@ -26096,20 +26070,17 @@ static void input_config_parse_joy_axis(
 }
 
 static void input_config_parse_mouse_button(
+      char *s,
       config_file_t *conf, const char *prefix,
       const char *btn, struct retro_keybind *bind)
 {
    int val;
-   char str[256];
    char tmp[64];
    char key[64];
 
-   str[0] = tmp[0] = key[0] = '\0';
+   tmp[0] = key[0] = '\0';
 
-   fill_pathname_join_delim(str, prefix, btn,
-         '_', sizeof(str));
-   fill_pathname_join_delim(key, str,
-         "mbtn", '_', sizeof(key));
+   fill_pathname_join_delim(key, s, "mbtn", '_', sizeof(key));
 
    if (config_get_array(conf, key, tmp, sizeof(tmp)))
    {
@@ -26719,7 +26690,8 @@ void input_config_reset(void)
 void config_read_keybinds_conf(void *data)
 {
    unsigned i;
-   config_file_t *conf = (config_file_t*)data;
+   config_file_t         *conf = (config_file_t*)data;
+   struct rarch_state *p_rarch = &rarch_st;
 
    if (!conf)
       return;
@@ -26730,12 +26702,16 @@ void config_read_keybinds_conf(void *data)
 
       for (j = 0; input_config_bind_map_get_valid(j); j++)
       {
+         char str[256];
          const struct input_bind_map *keybind =
             (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(j);
          struct retro_keybind *bind = &input_config_binds[i][j];
          bool meta                  = false;
          const char *prefix         = NULL;
          const char *btn            = NULL;
+         struct config_entry_list 
+            *entry                  = NULL;
+         
 
          if (!bind || !bind->valid || !keybind)
             continue;
@@ -26747,10 +26723,23 @@ void config_read_keybinds_conf(void *data)
          if (!btn || !prefix)
             continue;
 
-         input_config_parse_key(conf, prefix, btn, bind);
-         input_config_parse_joy_button(conf, prefix, btn, bind);
-         input_config_parse_joy_axis(conf, prefix, btn, bind);
-         input_config_parse_mouse_button(conf, prefix, btn, bind);
+         str[0]                     = '\0';
+
+         fill_pathname_join_delim(str, prefix, btn,  '_', sizeof(str));
+
+         /* Clear old mapping bit */
+         BIT512_CLEAR_PTR(&p_rarch->keyboard_mapping_bits, bind->key);
+
+         entry                      = config_get_entry(conf, str);
+         if (entry && !string_is_empty(entry->value))
+            bind->key               = input_config_translate_str_to_rk(
+                  entry->value);
+         /* Store mapping bit */
+         BIT512_SET_PTR(&p_rarch->keyboard_mapping_bits, bind->key);
+
+         input_config_parse_joy_button  (str, conf, prefix, btn, bind);
+         input_config_parse_joy_axis    (str, conf, prefix, btn, bind);
+         input_config_parse_mouse_button(str, conf, prefix, btn, bind);
       }
    }
 }
@@ -26772,9 +26761,14 @@ void input_config_set_autoconfig_binds(unsigned port, void *data)
          (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(i);
       if (keybind)
       {
+         char str[256];
          const char *base = keybind->base;
-         input_config_parse_joy_button(config, "input", base, &binds[i]);
-         input_config_parse_joy_axis  (config, "input", base, &binds[i]);
+         str[0]                     = '\0';
+
+         fill_pathname_join_delim(str, "input", base,  '_', sizeof(str));
+
+         input_config_parse_joy_button(str, config, "input", base, &binds[i]);
+         input_config_parse_joy_axis  (str, config, "input", base, &binds[i]);
       }
    }
 }
@@ -29113,7 +29107,11 @@ bool audio_driver_callback(void)
 {
    struct rarch_state *p_rarch = &rarch_st;
    settings_t *settings        = p_rarch->configuration_settings;
+#ifdef HAVE_MENU
    bool core_paused            = p_rarch->runloop_paused || (settings->bools.menu_pause_libretro && p_rarch->menu_driver_alive);
+#else
+   bool core_paused            = p_rarch->runloop_paused;
+#endif
 
    if (!p_rarch->audio_callback.callback)
       return false;
@@ -34967,6 +34965,27 @@ static bool find_menu_driver(
 }
 #endif
 
+static void input_mapper_reset(input_mapper_t *handle)
+{
+   unsigned i;
+   for (i = 0; i < MAX_USERS; i++)
+   {
+      unsigned j;
+      for (j = 0; j < 8; j++)
+      {
+         handle->analog_value[i][j]           = 0;
+         handle->buttons[i].data[j]           = 0;
+         handle->buttons[i].analogs[j]        = 0;
+         handle->buttons[i].analog_buttons[j] = 0;
+      }
+   }
+   for (i = 0; i < RETROK_LAST; i++)
+      handle->key_button[i]         = 0;
+   for (i = 0; i < (RETROK_LAST / 32 + 1); i++)
+      handle->keys[i]               = 0;
+}
+
+
 /**
  * retroarch_main_init:
  * @argc                 : Count of (commandline) arguments.
@@ -35186,11 +35205,7 @@ bool retroarch_main_init(int argc, char *argv[])
             p_rarch->configuration_settings,
             p_rarch->input_driver_max_users);
 #endif
-   if (p_rarch->input_driver_mapper)
-      free(p_rarch->input_driver_mapper);
-   p_rarch->input_driver_mapper = NULL;
-   if (p_rarch->configuration_settings->bools.input_remap_binds_enable)
-      p_rarch->input_driver_mapper = (input_mapper_t*)calloc(1, sizeof(*p_rarch->input_driver_mapper));
+   input_mapper_reset(&p_rarch->input_driver_mapper);
 #ifdef HAVE_REWIND
    command_event(CMD_EVENT_REWIND_INIT, NULL);
 #endif
@@ -35789,9 +35804,7 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
                   p_rarch->input_driver_max_users);
          p_rarch->input_driver_remote = NULL;
 #endif
-         if (p_rarch->input_driver_mapper)
-            free(p_rarch->input_driver_mapper);
-         p_rarch->input_driver_mapper = NULL;
+         input_mapper_reset(&p_rarch->input_driver_mapper);
 
 #ifdef HAVE_THREADS
          retroarch_autosave_deinit(p_rarch);
@@ -37896,7 +37909,11 @@ int runloop_iterate(void)
    bool vrr_runloop_enable                      = settings->bools.vrr_runloop_enable;
    unsigned max_users                           = p_rarch->input_driver_max_users;
    retro_time_t current_time                    = cpu_features_get_time_usec();
+#ifdef HAVE_MENU
    bool core_paused                             = p_rarch->runloop_paused || (settings->bools.menu_pause_libretro && p_rarch->menu_driver_alive);
+#else
+   bool core_paused                             = p_rarch->runloop_paused;
+#endif
 
 #ifdef HAVE_DISCORD
    discord_state_t *discord_st                  = &p_rarch->discord_st;
