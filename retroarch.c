@@ -269,6 +269,10 @@
 #include "input/input_osk_utf8_pages.h"
 #endif
 
+#if defined(HAVE_SDL) || defined(HAVE_SDL2) || defined(HAVE_SDL_DINGUX)
+#include "SDL.h"
+#endif
+
 /* RetroArch global state / macros */
 #include "retroarch_data.h"
 /* Forward declarations */
@@ -15337,6 +15341,21 @@ static void global_free(struct rarch_state *p_rarch)
    retroarch_override_setting_free_state();
 }
 
+#if defined(HAVE_SDL) || defined(HAVE_SDL2) || defined(HAVE_SDL_DINGUX)
+static void sdl_exit(void)
+{
+   /* Quit any SDL subsystems, then quit
+    * SDL itself */
+   uint32_t sdl_subsystem_flags = SDL_WasInit(0);
+
+   if (sdl_subsystem_flags != 0)
+   {
+      SDL_QuitSubSystem(sdl_subsystem_flags);
+      SDL_Quit();
+   }
+}
+#endif
+
 /**
  * main_exit:
  *
@@ -15421,6 +15440,10 @@ void main_exit(void *args)
 
 #if defined(_WIN32) && !defined(_XBOX) && !defined(__WINRT__)
    CoUninitialize();
+#endif
+
+#if defined(HAVE_SDL) || defined(HAVE_SDL2) || defined(HAVE_SDL_DINGUX)
+   sdl_exit();
 #endif
 }
 
@@ -27144,18 +27167,16 @@ static bool midi_driver_init(struct rarch_state *p_rarch)
 {
    settings_t *settings              = p_rarch->configuration_settings;
    union string_list_elem_attr attr  = {0};
-   const char *err_str               = NULL;
+   bool ret                          = true;
 
    p_rarch->midi_drv_inputs          = string_list_new();
    p_rarch->midi_drv_outputs         = string_list_new();
 
-   if (!settings)
-      err_str = "settings unavailable";
-   else if (!p_rarch->midi_drv_inputs || !p_rarch->midi_drv_outputs)
-      err_str = "string_list_new failed";
+   if (!p_rarch->midi_drv_inputs || !p_rarch->midi_drv_outputs)
+      ret = false;
    else if (!string_list_append(p_rarch->midi_drv_inputs, "Off", attr) ||
             !string_list_append(p_rarch->midi_drv_outputs, "Off", attr))
-      err_str = "string_list_append failed";
+      ret = false;
    else
    {
       char * input  = NULL;
@@ -27171,9 +27192,9 @@ static bool midi_driver_init(struct rarch_state *p_rarch)
       }
 
       if (!midi_drv->get_avail_inputs(p_rarch->midi_drv_inputs))
-         err_str = "list of input devices unavailable";
+         ret = false;
       else if (!midi_drv->get_avail_outputs(p_rarch->midi_drv_outputs))
-         err_str = "list of output devices unavailable";
+         ret = false;
       else
       {
          if (string_is_not_equal(settings->arrays.midi_input, "Off"))
@@ -27204,42 +27225,36 @@ static bool midi_driver_init(struct rarch_state *p_rarch)
 
          p_rarch->midi_drv_data = midi_drv->init(input, output);
          if (!p_rarch->midi_drv_data)
-            err_str = "driver init failed";
+            ret = false;
          else
          {
             p_rarch->midi_drv_input_enabled  = (input  != NULL);
             p_rarch->midi_drv_output_enabled = (output != NULL);
 
             if (!midi_driver_init_io_buffers(p_rarch))
-               err_str = "out of memory";
+               ret = false;
             else
             {
                if (input)
                   RARCH_LOG("[MIDI]: Input device \"%s\".\n", input);
-               else
-                  RARCH_LOG("[MIDI]: Input disabled.\n");
 
                if (output)
                {
                   RARCH_LOG("[MIDI]: Output device \"%s\".\n", output);
                   midi_driver_set_volume(settings->uints.midi_volume);
                }
-               else
-                  RARCH_LOG("[MIDI]: Output disabled.\n");
             }
          }
       }
    }
 
-   if (err_str)
+   if (!ret)
    {
       midi_driver_free(p_rarch);
-      RARCH_ERR("[MIDI]: Initialization failed (%s).\n", err_str);
+      RARCH_ERR("[MIDI]: Initialization failed.\n");
+      return false;
    }
-   else
-      RARCH_LOG("[MIDI]: Initialized \"%s\" driver.\n", midi_drv->ident);
-
-   return err_str == NULL;
+   return true;
 }
 
 bool midi_driver_set_input(const char *input)
@@ -32762,6 +32777,7 @@ static void drivers_init(struct rarch_state *p_rarch, int flags)
 #endif
    bool video_is_threaded      = VIDEO_DRIVER_IS_THREADED_INTERNAL();
    settings_t *settings        = p_rarch->configuration_settings;
+   gfx_display_t *p_disp       = &p_rarch->dispgfx;
 #if defined(HAVE_GFX_WIDGETS)
    bool video_font_enable      = settings->bools.video_font_enable;
    bool menu_enable_widgets    = settings->bools.menu_enable_widgets;
@@ -32877,6 +32893,9 @@ static void drivers_init(struct rarch_state *p_rarch, int flags)
             rarch_force_fullscreen;
 
       p_rarch->widgets_active     = gfx_widgets_init(
+            &p_rarch->dispwidget_st,
+            &p_rarch->dispgfx,
+            settings,
             (uintptr_t)&p_rarch->widgets_active,
             video_is_threaded,
             p_rarch->video_driver_width,
@@ -32888,7 +32907,7 @@ static void drivers_init(struct rarch_state *p_rarch, int flags)
    else
 #endif
    {
-      gfx_display_init_first_driver(video_is_threaded);
+      gfx_display_init_first_driver(p_disp, video_is_threaded);
    }
 
 #ifdef HAVE_MENU
@@ -32962,8 +32981,11 @@ static void driver_uninit(struct rarch_state *p_rarch, int flags)
    /* This absolutely has to be done before video_driver_free_internal()
     * is called/completes, otherwise certain menu drivers
     * (e.g. Vulkan) will segfault */
-   if (gfx_widgets_deinit(p_rarch->widgets_persisting))
+   if (p_rarch->dispwidget_st.widgets_inited)
+   {
+      gfx_widgets_deinit(&p_rarch->dispwidget_st, p_rarch->widgets_persisting);
       p_rarch->widgets_active = false;
+   }
 #endif
 
 #ifdef HAVE_MENU
@@ -33034,8 +33056,11 @@ static void retroarch_deinit_drivers(struct rarch_state *p_rarch, struct retro_c
     * in case the handle is lost in the threaded
     * video driver in the meantime
     * (breaking video_driver_has_widgets) */
-   if (gfx_widgets_deinit(p_rarch->widgets_persisting))
+   if (p_rarch->dispwidget_st.widgets_inited)
+   {
+      gfx_widgets_deinit(&p_rarch->dispwidget_st, p_rarch->widgets_persisting);
       p_rarch->widgets_active = false;
+   }
 #endif
 
    /* Video */
@@ -37237,6 +37262,7 @@ static enum runloop_state runloop_check_state(
       gfx_widgets_iterate(
             &p_rarch->dispwidget_st,
             &p_rarch->dispgfx,
+            settings,
             p_rarch->video_driver_width,
             p_rarch->video_driver_height,
             video_is_fullscreen,
