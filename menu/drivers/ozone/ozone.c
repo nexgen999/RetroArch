@@ -2897,7 +2897,7 @@ static void ozone_frame(void *data, video_frame_info_t *video_info)
    bool input_menu_swap_ok_cancel_buttons = video_info->input_menu_swap_ok_cancel_buttons;
    bool battery_level_enable              = video_info->battery_level_enable;
    bool timedate_enable                   = video_info->timedate_enable;
-   gfx_display_t            *p_disp       = disp_get_ptr();
+   gfx_display_t            *p_disp       = (gfx_display_t*)video_info->disp_userdata;
    gfx_animation_t *p_anim                = anim_get_ptr();
    gfx_display_ctx_driver_t *dispctx      = p_disp->dispctx;
 
@@ -3108,6 +3108,7 @@ static void ozone_frame(void *data, video_frame_info_t *video_info)
    /* Draw fullscreen thumbnails, if required */
    ozone_draw_fullscreen_thumbnails(ozone,
          userdata,
+         video_info->disp_userdata,
          video_width,
          video_height);
 
@@ -3154,6 +3155,7 @@ static void ozone_frame(void *data, video_frame_info_t *video_info)
 
       ozone_draw_backdrop(
             userdata,
+            video_info->disp_userdata,
             video_width,
             video_height,
             float_min(ozone->animations.messagebox_alpha, 0.75f));
@@ -3165,6 +3167,7 @@ static void ozone_frame(void *data, video_frame_info_t *video_info)
 
          ozone_draw_osk(ozone,
                userdata,
+               video_info->disp_userdata,
                video_width,
                video_height,
                label, str);
