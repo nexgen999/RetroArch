@@ -11977,29 +11977,21 @@ static void command_event_set_mixer_volume(
  *
  * Initialize libretro controllers.
  **/
-static void command_event_init_controllers(struct rarch_state *p_rarch)
+static void command_event_init_controllers(rarch_system_info_t *info,
+      unsigned num_active_users)
 {
    unsigned i;
-   rarch_system_info_t *info     = &p_rarch->runloop_system;
-   unsigned num_active_users     = p_rarch->input_driver_max_users;
    unsigned ports_size           = info->ports.size;
 
-   if (!info)
-      return;
-
-   for (i = 0; i < MAX_USERS; i++)
+   for (i = 0; i < ports_size; i++)
    {
       retro_ctx_controller_info_t pad;
-      const struct retro_controller_description *desc = NULL;
       unsigned device                                 = (i < num_active_users)
          ? input_config_get_device(i)
          : RETRO_DEVICE_NONE;
-
-      if (i >= ports_size)
-         break;
-
-      desc = libretro_find_controller_description(
-            &info->ports.data[i], device);
+      const struct retro_controller_description *desc = 
+         libretro_find_controller_description(
+               &info->ports.data[i], device);
 
       if (desc && !desc->desc)
       {
@@ -13246,56 +13238,56 @@ bool command_event(enum event_command cmd, void *data)
 #endif
          break;
       case CMD_EVENT_AI_SERVICE_TOGGLE:
-      {
+         {
 #ifdef HAVE_TRANSLATE
-         bool ai_service_pause     = settings->bools.ai_service_pause;
+            bool ai_service_pause     = settings->bools.ai_service_pause;
 
-         if (!settings->bools.ai_service_enable)
-            break;
+            if (!settings->bools.ai_service_enable)
+               break;
 
-         if (ai_service_pause)
-         {
-            /* pause on call, unpause on second press. */
-            if (!p_rarch->runloop_paused)
+            if (ai_service_pause)
             {
-               command_event(CMD_EVENT_PAUSE, NULL);
-               command_event(CMD_EVENT_AI_SERVICE_CALL, NULL);
-            }
-            else
-            {
+               /* pause on call, unpause on second press. */
+               if (!p_rarch->runloop_paused)
+               {
+                  command_event(CMD_EVENT_PAUSE, NULL);
+                  command_event(CMD_EVENT_AI_SERVICE_CALL, NULL);
+               }
+               else
+               {
 #ifdef HAVE_ACCESSIBILITY
-               if (is_accessibility_enabled(p_rarch))
-                   accessibility_speak_priority(p_rarch,
-                         (char*) msg_hash_to_str(MSG_UNPAUSED), 10);
+                  if (is_accessibility_enabled(p_rarch))
+                     accessibility_speak_priority(p_rarch,
+                           (char*) msg_hash_to_str(MSG_UNPAUSED), 10);
 #endif
-               command_event(CMD_EVENT_UNPAUSE, NULL);
-            }
-         }
-         else
-         {
-           /* Don't pause - useful for Text-To-Speech since
-            * the audio can't currently play while paused.
-            * Also useful for cases when users don't want the
-            * core's sound to stop while translating.
-            *
-            * Also, this mode is required for "auto" translation
-            * packages, since you don't want to pause for that.
-            */
-            if (p_rarch->ai_service_auto == 2)
-            {
-               /* Auto mode was turned on, but we pressed the
-                * toggle button, so turn it off now. */
-               p_rarch->ai_service_auto = 0;
-#ifdef HAVE_MENU_WIDGETS
-               gfx_widgets_ai_service_overlay_unload(&p_rarch->dispwidget_st);
-#endif
+                  command_event(CMD_EVENT_UNPAUSE, NULL);
+               }
             }
             else
-               command_event(CMD_EVENT_AI_SERVICE_CALL, NULL);
-         }
+            {
+               /* Don't pause - useful for Text-To-Speech since
+                * the audio can't currently play while paused.
+                * Also useful for cases when users don't want the
+                * core's sound to stop while translating.
+                *
+                * Also, this mode is required for "auto" translation
+                * packages, since you don't want to pause for that.
+                */
+               if (p_rarch->ai_service_auto == 2)
+               {
+                  /* Auto mode was turned on, but we pressed the
+                   * toggle button, so turn it off now. */
+                  p_rarch->ai_service_auto = 0;
+#ifdef HAVE_MENU_WIDGETS
+                  gfx_widgets_ai_service_overlay_unload(&p_rarch->dispwidget_st);
 #endif
-         break;
-      }
+               }
+               else
+                  command_event(CMD_EVENT_AI_SERVICE_CALL, NULL);
+            }
+#endif
+            break;
+         }
       case CMD_EVENT_STREAMING_TOGGLE:
          if (streaming_is_enabled())
             command_event(CMD_EVENT_RECORD_DEINIT, NULL);
@@ -13564,7 +13556,7 @@ bool command_event(enum event_command cmd, void *data)
             {
 #ifdef HAVE_MENU
                if (  (settings->uints.quit_on_close_content == QUIT_ON_CLOSE_CONTENT_CLI && global->launched_from_cli)
-                   || settings->uints.quit_on_close_content == QUIT_ON_CLOSE_CONTENT_ENABLED
+                     || settings->uints.quit_on_close_content == QUIT_ON_CLOSE_CONTENT_ENABLED
                   )
                   command_event(CMD_EVENT_QUIT, NULL);
 #endif
@@ -14008,7 +14000,7 @@ bool command_event(enum event_command cmd, void *data)
          break;
       case CMD_EVENT_AUDIO_REINIT:
          driver_uninit(p_rarch, DRIVER_AUDIO_MASK);
-         drivers_init(p_rarch, DRIVER_AUDIO_MASK);
+         drivers_init(p_rarch, DRIVER_AUDIO_MASK, verbosity_is_enabled());
          break;
       case CMD_EVENT_SHUTDOWN:
 #if defined(__linux__) && !defined(ANDROID)
@@ -14037,7 +14029,7 @@ bool command_event(enum event_command cmd, void *data)
 
             /* Check whether favourties playlist is at capacity */
             if (playlist_size(g_defaults.content_favorites) >=
-                playlist_capacity(g_defaults.content_favorites))
+                  playlist_capacity(g_defaults.content_favorites))
             {
                runloop_msg_queue_push(
                      msg_hash_to_str(MSG_ADD_TO_FAVORITES_FAILED), 1, 180, true, NULL,
@@ -14063,11 +14055,11 @@ bool command_event(enum event_command cmd, void *data)
                   if (playlist_push(g_defaults.content_favorites, &entry))
                   {
                      enum playlist_sort_mode current_sort_mode =
-                           playlist_get_sort_mode(g_defaults.content_favorites);
+                        playlist_get_sort_mode(g_defaults.content_favorites);
 
                      /* New addition - need to resort if option is enabled */
                      if ((playlist_sort_alphabetical && (current_sort_mode == PLAYLIST_SORT_MODE_DEFAULT)) ||
-                         (current_sort_mode == PLAYLIST_SORT_MODE_ALPHABETICAL))
+                           (current_sort_mode == PLAYLIST_SORT_MODE_ALPHABETICAL))
                         playlist_qsort(g_defaults.content_favorites);
 
                      playlist_write_file(g_defaults.content_favorites);
@@ -14618,7 +14610,7 @@ bool command_event(enum event_command cmd, void *data)
       case CMD_EVENT_GAME_FOCUS_TOGGLE:
          {
             bool video_fullscreen                         =
-                  settings->bools.video_fullscreen || p_rarch->rarch_force_fullscreen;
+               settings->bools.video_fullscreen || p_rarch->rarch_force_fullscreen;
             enum input_game_focus_cmd_type game_focus_cmd = GAME_FOCUS_CMD_TOGGLE;
             bool current_enable_state                     = p_rarch->game_focus_state.enabled;
             bool apply_update                             = false;
@@ -14690,8 +14682,8 @@ bool command_event(enum event_command cmd, void *data)
                if (show_message)
                   runloop_msg_queue_push(
                         p_rarch->game_focus_state.enabled ?
-                              msg_hash_to_str(MSG_GAME_FOCUS_ON) :
-                                    msg_hash_to_str(MSG_GAME_FOCUS_OFF),
+                        msg_hash_to_str(MSG_GAME_FOCUS_ON) :
+                        msg_hash_to_str(MSG_GAME_FOCUS_OFF),
                         1, 60, true,
                         NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
 
@@ -14752,41 +14744,47 @@ bool command_event(enum event_command cmd, void *data)
          break;
 
       case CMD_EVENT_AI_SERVICE_CALL:
-      {
-#ifdef HAVE_TRANSLATE
-         unsigned ai_service_mode = settings->uints.ai_service_mode;
-         if (ai_service_mode == 1 && is_ai_service_speech_running())
          {
-            ai_service_speech_stop();
+#ifdef HAVE_TRANSLATE
+            unsigned ai_service_mode = settings->uints.ai_service_mode;
+            if (ai_service_mode == 1 && is_ai_service_speech_running())
+            {
+               ai_service_speech_stop();
 #ifdef HAVE_ACCESSIBILITY
-            if (is_accessibility_enabled(p_rarch))
-               accessibility_speak_priority(p_rarch, "stopped.", 10);
+               if (is_accessibility_enabled(p_rarch))
+                  accessibility_speak_priority(p_rarch, "stopped.", 10);
 #endif
-         }
+            }
 #ifdef HAVE_ACCESSIBILITY
-         else if (is_accessibility_enabled(p_rarch) &&
+            else if (is_accessibility_enabled(p_rarch) &&
                   ai_service_mode == 2 &&
                   is_narrator_running(p_rarch))
-            accessibility_speak_priority(p_rarch, "stopped.", 10);
+               accessibility_speak_priority(p_rarch, "stopped.", 10);
 #endif
-         else
-         {
-            bool paused = p_rarch->runloop_paused;
-            if (data)
-               paused = *((bool*)data);
+            else
+            {
+               bool paused = p_rarch->runloop_paused;
+               if (data)
+                  paused = *((bool*)data);
 
-            if (p_rarch->ai_service_auto == 0 && !settings->bools.ai_service_pause)
-               p_rarch->ai_service_auto = 1;
-            if (p_rarch->ai_service_auto != 2)
-               RARCH_LOG("AI Service Called...\n");
-            run_translation_service(p_rarch->configuration_settings,
-                  p_rarch, paused);
-         }
+               if (p_rarch->ai_service_auto == 0 && !settings->bools.ai_service_pause)
+                  p_rarch->ai_service_auto = 1;
+               if (p_rarch->ai_service_auto != 2)
+                  RARCH_LOG("AI Service Called...\n");
+               run_translation_service(p_rarch->configuration_settings,
+                     p_rarch, paused);
+            }
 #endif
-         break;
-      }
+            break;
+         }
       case CMD_EVENT_CONTROLLER_INIT:
-         command_event_init_controllers(p_rarch);
+         {
+            rarch_system_info_t *info = &p_rarch->runloop_system;
+            if (info)
+               command_event_init_controllers(info,
+                     p_rarch->input_driver_max_users
+                     );
+         }
          break;
       case CMD_EVENT_NONE:
          return false;
@@ -19085,6 +19083,7 @@ bool bluetooth_driver_ctl(enum rarch_bluetooth_ctl_state state, void *data)
          break;
       case RARCH_BLUETOOTH_CTL_FIND_DRIVER:
          {
+            const char *prefix   = "bluetooth driver";
             int i                = (int)driver_find_index(
                   "bluetooth_driver",
                   settings->arrays.bluetooth_driver);
@@ -19096,13 +19095,13 @@ bool bluetooth_driver_ctl(enum rarch_bluetooth_ctl_state state, void *data)
                if (verbosity_is_enabled())
                {
                   unsigned d;
-                  RARCH_ERR("Couldn't find any bluetooth driver named \"%s\"\n",
+                  RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
                         settings->arrays.bluetooth_driver);
-                  RARCH_LOG_OUTPUT("Available bluetooth drivers are:\n");
+                  RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
                   for (d = 0; bluetooth_drivers[d]; d++)
                      RARCH_LOG_OUTPUT("\t%s\n", bluetooth_drivers[d]->ident);
 
-                  RARCH_WARN("Going to default to first bluetooth driver...\n");
+                  RARCH_WARN("Going to default to first %s...\n", prefix);
                }
 
                p_rarch->bluetooth_driver = (const bluetooth_driver_t*)bluetooth_drivers[0];
@@ -19232,6 +19231,7 @@ bool wifi_driver_ctl(enum rarch_wifi_ctl_state state, void *data)
          break;
       case RARCH_WIFI_CTL_FIND_DRIVER:
          {
+            const char *prefix   = "wifi driver";
             int i                = (int)driver_find_index(
                   "wifi_driver",
                   settings->arrays.wifi_driver);
@@ -19243,13 +19243,13 @@ bool wifi_driver_ctl(enum rarch_wifi_ctl_state state, void *data)
                if (verbosity_is_enabled())
                {
                   unsigned d;
-                  RARCH_ERR("Couldn't find any wifi driver named \"%s\"\n",
+                  RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
                         settings->arrays.wifi_driver);
-                  RARCH_LOG_OUTPUT("Available wifi drivers are:\n");
+                  RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
                   for (d = 0; wifi_drivers[d]; d++)
                      RARCH_LOG_OUTPUT("\t%s\n", wifi_drivers[d]->ident);
 
-                  RARCH_WARN("Going to default to first wifi driver...\n");
+                  RARCH_WARN("Going to default to first %s...\n", prefix);
                }
 
                p_rarch->wifi_driver = (const wifi_driver_t*)wifi_drivers[0];
@@ -19582,7 +19582,8 @@ const char* config_get_record_driver_options(void)
 
 #if 0
 /* TODO/FIXME - not used apparently */
-static void find_record_driver(void)
+static void find_record_driver(struct rarch_state *p_rarch, const char *prefix,
+      bool verbosity_enabled)
 {
    settings_t *settings = p_rarch->configuration_settings;
    int i                = (int)driver_find_index(
@@ -19593,16 +19594,16 @@ static void find_record_driver(void)
       p_rarch->recording_driver = (const record_driver_t*)record_drivers[i];
    else
    {
-      if (verbosity_is_enabled())
+      if (verbosity_enabled)
       {
          unsigned d;
 
-         RARCH_ERR("[recording] Couldn't find any record driver named \"%s\"\n",
+         RARCH_ERR("[recording] Couldn't find any %s named \"%s\"\n", prefix,
                settings->arrays.record_driver);
-         RARCH_LOG_OUTPUT("Available record drivers are:\n");
+         RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
          for (d = 0; record_drivers[d]; d++)
             RARCH_LOG_OUTPUT("\t%s\n", record_drivers[d].ident);
-         RARCH_WARN("[recording] Going to default to first record driver...\n");
+         RARCH_WARN("[recording] Going to default to first %s...\n", prefix);
       }
 
       p_rarch->recording_driver = (const record_driver_t*)record_drivers[0];
@@ -22293,33 +22294,34 @@ static int16_t input_state_device(
       unsigned idx, unsigned id,
       bool button_mask)
 {
+   unsigned i;
    int16_t res                   = 0;
    settings_t *settings          = p_rarch->configuration_settings;
-   bool input_remap_binds_enable = settings->bools.input_remap_binds_enable;
    input_mapper_t *handle        = &p_rarch->input_driver_mapper;
+   unsigned iterations           = button_mask ? RARCH_FIRST_CUSTOM_BIND : 1;
 
-   switch (device)
+   for (i = 0; i < iterations; i++, id++)
    {
-      case RETRO_DEVICE_JOYPAD:
+      switch (device)
+      {
+         case RETRO_DEVICE_JOYPAD:
 
-         if (id < RARCH_FIRST_META_KEY)
-         {
-#ifdef HAVE_NETWORKGAMEPAD
-            /* Don't process binds if input is coming from Remote RetroPad */
-            if (     p_rarch->input_driver_remote 
-                  && INPUT_REMOTE_KEY_PRESSED(p_rarch, id, port))
-               res |= 1;
-            else
-#endif
+            if (id < RARCH_FIRST_META_KEY)
             {
-               if (input_remap_binds_enable)
+#ifdef HAVE_NETWORKGAMEPAD
+               /* Don't process binds if input is coming from Remote RetroPad */
+               if (     p_rarch->input_driver_remote 
+                     && INPUT_REMOTE_KEY_PRESSED(p_rarch, id, port))
+                  res |= 1;
+               else
+#endif
                {
                   bool bind_valid = p_rarch->libretro_input_binds[port]
                      && p_rarch->libretro_input_binds[port][id].valid;
 
                   if (!
                         (      bind_valid
-                            && id != settings->uints.input_remap_ids[port][id]
+                               && id != settings->uints.input_remap_ids[port][id]
                         )
                      )
                   {
@@ -22335,185 +22337,181 @@ static int16_t input_state_device(
 
                   if (BIT256_GET(handle->buttons[port], id))
                      res = 1;
-               }
 
 #ifdef HAVE_OVERLAY
-               if (port == 0)
-               {
-                  if (p_rarch->overlay_ptr && p_rarch->overlay_ptr->alive)
-                     if ((BIT256_GET(p_rarch->overlay_ptr->overlay_state.buttons, id)))
-                        res |= 1;
-               }
+                  if (port == 0)
+                  {
+                     if (p_rarch->overlay_ptr && p_rarch->overlay_ptr->alive)
+                        if ((BIT256_GET(p_rarch->overlay_ptr->overlay_state.buttons, id)))
+                           res |= 1;
+                  }
 #endif
-            }
-         }
-
-         /* Don't allow turbo for D-pad. */
-         if (     (id  < RETRO_DEVICE_ID_JOYPAD_UP)    ||
-             (    (id  > RETRO_DEVICE_ID_JOYPAD_RIGHT) &&
-                  (id <= RETRO_DEVICE_ID_JOYPAD_R3)))
-         {
-            /*
-             * Apply turbo button if activated.
-             */
-            unsigned turbo_mode = settings->uints.input_turbo_mode;
-
-            if (turbo_mode > INPUT_TURBO_MODE_CLASSIC)
-            {
-               /* Pressing turbo button toggles turbo mode on or off.
-                * Holding the button will
-                * pass through, else the pressed state will be modulated by a
-                * periodic pulse defined by the configured duty cycle.
-                */
-
-               /* Avoid detecting the turbo button being held as multiple toggles */
-               if (!p_rarch->input_driver_turbo_btns.frame_enable[port])
-                  p_rarch->input_driver_turbo_btns.turbo_pressed[port] &= ~(1 << 31);
-               else if (p_rarch->input_driver_turbo_btns.turbo_pressed[port]>=0)
-               {
-                  p_rarch->input_driver_turbo_btns.turbo_pressed[port] |= (1 << 31);
-                  /* Toggle turbo for selected buttons. */
-                  if (p_rarch->input_driver_turbo_btns.enable[port]
-                      != (1 << settings->uints.input_turbo_default_button))
-                  {
-                     static const int button_map[]={
-                        RETRO_DEVICE_ID_JOYPAD_B,
-                        RETRO_DEVICE_ID_JOYPAD_Y,
-                        RETRO_DEVICE_ID_JOYPAD_A,
-                        RETRO_DEVICE_ID_JOYPAD_X,
-                        RETRO_DEVICE_ID_JOYPAD_L,
-                        RETRO_DEVICE_ID_JOYPAD_R,
-                        RETRO_DEVICE_ID_JOYPAD_L2,
-                        RETRO_DEVICE_ID_JOYPAD_R2,
-                        RETRO_DEVICE_ID_JOYPAD_L3,
-                        RETRO_DEVICE_ID_JOYPAD_R3};
-                     p_rarch->input_driver_turbo_btns.enable[port] = 1 << button_map[
-                        MIN(
-                              ARRAY_SIZE(button_map) - 1,
-                              settings->uints.input_turbo_default_button)];
-                  }
-                  p_rarch->input_driver_turbo_btns.mode1_enable[port] ^= 1;
-               }
-
-               if (p_rarch->input_driver_turbo_btns.turbo_pressed[port] & (1 << 31))
-               {
-                  /* Avoid detecting buttons being held as multiple toggles */
-                  if (!res)
-                     p_rarch->input_driver_turbo_btns.turbo_pressed[port] &= ~(1 << id);
-                  else if (!(p_rarch->input_driver_turbo_btns.turbo_pressed[port] & (1 << id)) &&
-                     turbo_mode == INPUT_TURBO_MODE_SINGLEBUTTON)
-                  {
-                     uint16_t enable_new;
-                     p_rarch->input_driver_turbo_btns.turbo_pressed[port] |= 1 << id;
-                     /* Toggle turbo for pressed button but make
-                      * sure at least one button has turbo */
-                     enable_new = p_rarch->input_driver_turbo_btns.enable[port] ^ (1 << id);
-                     if (enable_new)
-                        p_rarch->input_driver_turbo_btns.enable[port] = enable_new;
-                  }
-               }
-               else if (turbo_mode == INPUT_TURBO_MODE_SINGLEBUTTON_HOLD &&
-                     p_rarch->input_driver_turbo_btns.enable[port] &&
-                     p_rarch->input_driver_turbo_btns.mode1_enable[port])
-               {
-                  /* Hold mode stops turbo on release */
-                  p_rarch->input_driver_turbo_btns.mode1_enable[port] = 0;
-               }
-
-               if (!res && p_rarch->input_driver_turbo_btns.mode1_enable[port] &&
-                     p_rarch->input_driver_turbo_btns.enable[port] & (1 << id))
-               {
-                  /* if turbo button is enabled for this key ID */
-                  res = ((p_rarch->input_driver_turbo_btns.count
-                           % settings->uints.input_turbo_period)
-                        < settings->uints.input_turbo_duty_cycle);
                }
             }
-            else
-            {
-               /* If turbo button is held, all buttons pressed except
-                * for D-pad will go into a turbo mode. Until the button is
-                * released again, the input state will be modulated by a
-                * periodic pulse defined by the configured duty cycle.
-                */
-               if (res)
-               {
-                  if (p_rarch->input_driver_turbo_btns.frame_enable[port])
-                     p_rarch->input_driver_turbo_btns.enable[port] |= (1 << id);
 
-                  if (p_rarch->input_driver_turbo_btns.enable[port] & (1 << id))
+            /* Don't allow turbo for D-pad. */
+            if (     (id  < RETRO_DEVICE_ID_JOYPAD_UP)    ||
+                  (    (id  > RETRO_DEVICE_ID_JOYPAD_RIGHT) &&
+                       (id <= RETRO_DEVICE_ID_JOYPAD_R3)))
+            {
+               /*
+                * Apply turbo button if activated.
+                */
+               unsigned turbo_mode = settings->uints.input_turbo_mode;
+
+               if (turbo_mode > INPUT_TURBO_MODE_CLASSIC)
+               {
+                  /* Pressing turbo button toggles turbo mode on or off.
+                   * Holding the button will
+                   * pass through, else the pressed state will be modulated by a
+                   * periodic pulse defined by the configured duty cycle.
+                   */
+
+                  /* Avoid detecting the turbo button being held as multiple toggles */
+                  if (!p_rarch->input_driver_turbo_btns.frame_enable[port])
+                     p_rarch->input_driver_turbo_btns.turbo_pressed[port] &= ~(1 << 31);
+                  else if (p_rarch->input_driver_turbo_btns.turbo_pressed[port]>=0)
+                  {
+                     p_rarch->input_driver_turbo_btns.turbo_pressed[port] |= (1 << 31);
+                     /* Toggle turbo for selected buttons. */
+                     if (p_rarch->input_driver_turbo_btns.enable[port]
+                           != (1 << settings->uints.input_turbo_default_button))
+                     {
+                        static const int button_map[]={
+                           RETRO_DEVICE_ID_JOYPAD_B,
+                           RETRO_DEVICE_ID_JOYPAD_Y,
+                           RETRO_DEVICE_ID_JOYPAD_A,
+                           RETRO_DEVICE_ID_JOYPAD_X,
+                           RETRO_DEVICE_ID_JOYPAD_L,
+                           RETRO_DEVICE_ID_JOYPAD_R,
+                           RETRO_DEVICE_ID_JOYPAD_L2,
+                           RETRO_DEVICE_ID_JOYPAD_R2,
+                           RETRO_DEVICE_ID_JOYPAD_L3,
+                           RETRO_DEVICE_ID_JOYPAD_R3};
+                        p_rarch->input_driver_turbo_btns.enable[port] = 1 << button_map[
+                           MIN(
+                                 ARRAY_SIZE(button_map) - 1,
+                                 settings->uints.input_turbo_default_button)];
+                     }
+                     p_rarch->input_driver_turbo_btns.mode1_enable[port] ^= 1;
+                  }
+
+                  if (p_rarch->input_driver_turbo_btns.turbo_pressed[port] & (1 << 31))
+                  {
+                     /* Avoid detecting buttons being held as multiple toggles */
+                     if (!res)
+                        p_rarch->input_driver_turbo_btns.turbo_pressed[port] &= ~(1 << id);
+                     else if (!(p_rarch->input_driver_turbo_btns.turbo_pressed[port] & (1 << id)) &&
+                           turbo_mode == INPUT_TURBO_MODE_SINGLEBUTTON)
+                     {
+                        uint16_t enable_new;
+                        p_rarch->input_driver_turbo_btns.turbo_pressed[port] |= 1 << id;
+                        /* Toggle turbo for pressed button but make
+                         * sure at least one button has turbo */
+                        enable_new = p_rarch->input_driver_turbo_btns.enable[port] ^ (1 << id);
+                        if (enable_new)
+                           p_rarch->input_driver_turbo_btns.enable[port] = enable_new;
+                     }
+                  }
+                  else if (turbo_mode == INPUT_TURBO_MODE_SINGLEBUTTON_HOLD &&
+                        p_rarch->input_driver_turbo_btns.enable[port] &&
+                        p_rarch->input_driver_turbo_btns.mode1_enable[port])
+                  {
+                     /* Hold mode stops turbo on release */
+                     p_rarch->input_driver_turbo_btns.mode1_enable[port] = 0;
+                  }
+
+                  if (!res && p_rarch->input_driver_turbo_btns.mode1_enable[port] &&
+                        p_rarch->input_driver_turbo_btns.enable[port] & (1 << id))
+                  {
                      /* if turbo button is enabled for this key ID */
                      res = ((p_rarch->input_driver_turbo_btns.count
                               % settings->uints.input_turbo_period)
                            < settings->uints.input_turbo_duty_cycle);
+                  }
                }
                else
-                  p_rarch->input_driver_turbo_btns.enable[port] &= ~(1 << id);
-            }
-         }
-
-         break;
-
-
-      case RETRO_DEVICE_KEYBOARD:
-
-         res = ret;
-
-         if (id < RETROK_LAST)
-         {
-#ifdef HAVE_OVERLAY
-            if (port == 0)
-            {
-               if (p_rarch->overlay_ptr && p_rarch->overlay_ptr->alive)
                {
-                  input_overlay_state_t 
-                     *ol_state          = &p_rarch->overlay_ptr->overlay_state;
+                  /* If turbo button is held, all buttons pressed except
+                   * for D-pad will go into a turbo mode. Until the button is
+                   * released again, the input state will be modulated by a
+                   * periodic pulse defined by the configured duty cycle.
+                   */
+                  if (res)
+                  {
+                     if (p_rarch->input_driver_turbo_btns.frame_enable[port])
+                        p_rarch->input_driver_turbo_btns.enable[port] |= (1 << id);
 
-                  if (OVERLAY_GET_KEY(ol_state, id))
-                     res               |= 1;
+                     if (p_rarch->input_driver_turbo_btns.enable[port] & (1 << id))
+                        /* if turbo button is enabled for this key ID */
+                        res = ((p_rarch->input_driver_turbo_btns.count
+                                 % settings->uints.input_turbo_period)
+                              < settings->uints.input_turbo_duty_cycle);
+                  }
+                  else
+                     p_rarch->input_driver_turbo_btns.enable[port] &= ~(1 << id);
                }
             }
+
+            break;
+
+
+         case RETRO_DEVICE_KEYBOARD:
+
+            res = ret;
+
+            if (id < RETROK_LAST)
+            {
+#ifdef HAVE_OVERLAY
+               if (port == 0)
+               {
+                  if (p_rarch->overlay_ptr && p_rarch->overlay_ptr->alive)
+                  {
+                     input_overlay_state_t 
+                        *ol_state          = &p_rarch->overlay_ptr->overlay_state;
+
+                     if (OVERLAY_GET_KEY(ol_state, id))
+                        res               |= 1;
+                  }
+               }
 #endif
-            if (input_remap_binds_enable)
                if (MAPPER_GET_KEY(handle, id))
                   res |= 1;
-         }
+            }
 
-         break;
+            break;
 
 
-      case RETRO_DEVICE_ANALOG:
-         {
+         case RETRO_DEVICE_ANALOG:
+            {
 #if defined(HAVE_NETWORKGAMEPAD) || defined(HAVE_OVERLAY)
 #ifdef HAVE_NETWORKGAMEPAD
-            input_remote_state_t 
-               *input_state         = &p_rarch->remote_st_ptr;
+               input_remote_state_t 
+                  *input_state         = &p_rarch->remote_st_ptr;
 
 #endif
-            unsigned base           = (idx == RETRO_DEVICE_INDEX_ANALOG_RIGHT)
-               ? 2 : 0;
-            if (id == RETRO_DEVICE_ID_ANALOG_Y)
-               base += 1;
+               unsigned base           = (idx == RETRO_DEVICE_INDEX_ANALOG_RIGHT)
+                  ? 2 : 0;
+               if (id == RETRO_DEVICE_ID_ANALOG_Y)
+                  base += 1;
 #ifdef HAVE_NETWORKGAMEPAD
-            if (p_rarch->input_driver_remote
-                  && input_state && input_state->analog[base][port])
-               res          = input_state->analog[base][port];
-            else
+               if (p_rarch->input_driver_remote
+                     && input_state && input_state->analog[base][port])
+                  res          = input_state->analog[base][port];
+               else
 #endif
 #endif
-            {
-               if (id < RARCH_FIRST_META_KEY)
                {
-                  bool bind_valid         = p_rarch->libretro_input_binds[port]
-                     && p_rarch->libretro_input_binds[port][id].valid;
-
-                  if (bind_valid)
+                  if (id < RARCH_FIRST_META_KEY)
                   {
-                     /* reset_state - used to reset input state of a button
-                      * when the gamepad mapper is in action for that button*/
-                     bool reset_state        = false;
-                     if (input_remap_binds_enable)
+                     bool bind_valid         = p_rarch->libretro_input_binds[port]
+                        && p_rarch->libretro_input_binds[port][id].valid;
+
+                     if (bind_valid)
                      {
+                        /* reset_state - used to reset input state of a button
+                         * when the gamepad mapper is in action for that button*/
+                        bool reset_state        = false;
                         if (idx < 2 && id < 2)
                         {
                            unsigned offset = RARCH_FIRST_CUSTOM_BIND +
@@ -22526,31 +22524,28 @@ static int16_t input_state_device(
                                  [port][offset+1] != (offset+1))
                               reset_state = true;
                         }
-                     }
 
-                     if (reset_state)
-                        res = 0;
-                     else
-                     {
-                        res = ret;
+                        if (reset_state)
+                           res = 0;
+                        else
+                        {
+                           res = ret;
 
 #ifdef HAVE_OVERLAY
-                        if (  p_rarch->overlay_ptr        &&
-                              p_rarch->overlay_ptr->alive && port == 0)
-                        {
-                           input_overlay_state_t *ol_state =
-                              &p_rarch->overlay_ptr->overlay_state;
-                           if (ol_state->analog[base])
-                              res |= ol_state->analog[base];
-                        }
+                           if (  p_rarch->overlay_ptr        &&
+                                 p_rarch->overlay_ptr->alive && port == 0)
+                           {
+                              input_overlay_state_t *ol_state =
+                                 &p_rarch->overlay_ptr->overlay_state;
+                              if (ol_state->analog[base])
+                                 res |= ol_state->analog[base];
+                           }
 #endif
+                        }
                      }
                   }
                }
-            }
 
-            if (input_remap_binds_enable)
-            {
                if (idx < 2 && id < 2)
                {
                   unsigned offset = 0 + (idx * 4) + (id * 2);
@@ -22563,32 +22558,33 @@ static int16_t input_state_device(
                      res          |= val2;
                }
             }
-         }
-         break;
+            break;
 
-      case RETRO_DEVICE_MOUSE:
-      case RETRO_DEVICE_LIGHTGUN:
-      case RETRO_DEVICE_POINTER:
+         case RETRO_DEVICE_MOUSE:
+         case RETRO_DEVICE_LIGHTGUN:
+         case RETRO_DEVICE_POINTER:
 
-         if (id < RARCH_FIRST_META_KEY)
-         {
-            bool bind_valid = p_rarch->libretro_input_binds[port]
-               && p_rarch->libretro_input_binds[port][id].valid;
-
-            if (bind_valid)
+            if (id < RARCH_FIRST_META_KEY)
             {
-               if (button_mask)
-               {
-                  if (ret & (1 << id))
-                     res |= (1 << id);
-               }
-               else
-                  res = ret;
-            }
-         }
+               bool bind_valid = p_rarch->libretro_input_binds[port]
+                  && p_rarch->libretro_input_binds[port][id].valid;
 
-         break;
+               if (bind_valid)
+               {
+                  if (button_mask)
+                  {
+                     if (ret & (1 << id))
+                        res |= (1 << id);
+                  }
+                  else
+                     res = ret;
+               }
+            }
+
+            break;
+      }
    }
+
 
    return res;
 }
@@ -22702,16 +22698,11 @@ static int16_t input_state(unsigned port, unsigned device,
    if (     (p_rarch->input_driver_flushing_input == 0)
          && !p_rarch->input_driver_block_libretro_input)
    {
-      if (  (device == RETRO_DEVICE_JOYPAD) &&
-            (id == RETRO_DEVICE_ID_JOYPAD_MASK))
-      {
-         unsigned i;
-         for (i = 0; i < RARCH_FIRST_CUSTOM_BIND; i++)
-            if (input_state_device(p_rarch, ret, port, device, idx, i, true))
-               result |= (1 << i);
-      }
-      else
-         result = input_state_device(p_rarch, ret, port, device, idx, id, false);
+      bool button_mask = (device == RETRO_DEVICE_JOYPAD) &&
+            (id == RETRO_DEVICE_ID_JOYPAD_MASK);
+
+      result = input_state_device(p_rarch, ret, port, device, idx, 
+            button_mask ? 0 : id, button_mask);
    }
 
 #ifdef HAVE_BSV_MOVIE
@@ -24596,7 +24587,7 @@ static bool input_driver_init(struct rarch_state *p_rarch)
    return (p_rarch->current_input_data != NULL);
 }
 
-static bool input_driver_find_driver(struct rarch_state *p_rarch)
+static bool input_driver_find_driver(struct rarch_state *p_rarch, const char *prefix)
 {
    settings_t *settings = p_rarch->configuration_settings;
    int i                = (int)driver_find_index(
@@ -24606,18 +24597,18 @@ static bool input_driver_find_driver(struct rarch_state *p_rarch)
    if (i >= 0)
    {
       p_rarch->current_input = (input_driver_t*)input_drivers[i];
-      RARCH_LOG("[Input]: Found input driver: \"%s\".\n",
+      RARCH_LOG("[Input]: Found %s: \"%s\".\n", prefix,
             p_rarch->current_input->ident);
    }
    else
    {
       unsigned d;
-      RARCH_ERR("Couldn't find any input driver named \"%s\"\n",
+      RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
             settings->arrays.input_driver);
-      RARCH_LOG_OUTPUT("Available input drivers are:\n");
+      RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
       for (d = 0; input_drivers[d]; d++)
          RARCH_LOG_OUTPUT("\t%s\n", input_drivers[d]->ident);
-      RARCH_WARN("Going to default to first input driver...\n");
+      RARCH_WARN("Going to default to first %s...\n", prefix);
 
       p_rarch->current_input = (input_driver_t*)input_drivers[0];
 
@@ -24647,15 +24638,16 @@ void input_driver_unset_nonblock_state(void)
 static void input_driver_init_command(struct rarch_state *p_rarch)
 {
    settings_t *settings          = p_rarch->configuration_settings;
-   bool input_stdin_cmd_enable   = settings->bools.stdin_cmd_enable;
    bool input_network_cmd_enable = settings->bools.network_cmd_enable;
    unsigned network_cmd_port     = settings->uints.network_cmd_port;
-   bool grab_stdin               = p_rarch->current_input->grab_stdin &&
-      p_rarch->current_input->grab_stdin(p_rarch->current_input_data);
 
-   #ifdef HAVE_STDIN_CMD
+#ifdef HAVE_STDIN_CMD
+   bool input_stdin_cmd_enable   = settings->bools.stdin_cmd_enable;
+   
    if (input_stdin_cmd_enable)
    {
+      bool grab_stdin               = p_rarch->current_input->grab_stdin &&
+         p_rarch->current_input->grab_stdin(p_rarch->current_input_data);
       if (grab_stdin)
       {
          RARCH_WARN("stdin command interface is desired, but input driver has already claimed stdin.\n"
@@ -24667,23 +24659,23 @@ static void input_driver_init_command(struct rarch_state *p_rarch)
             RARCH_ERR("Failed to initialize the stdin command interface.\n");
       }
    }
-   #endif
+#endif
 
    /* Initialize the network command interface */
-   #ifdef HAVE_NETWORK_CMD
+#ifdef HAVE_NETWORK_CMD
    if (input_network_cmd_enable)
    {
       p_rarch->input_driver_command[1] = command_network_new(network_cmd_port);
       if (!p_rarch->input_driver_command[1])
          RARCH_ERR("Failed to initialize the network command interface.\n");
    }
-   #endif
+#endif
 
-   #ifdef HAVE_LAKKA
+#ifdef HAVE_LAKKA
    p_rarch->input_driver_command[2] = command_uds_new();
    if (!p_rarch->input_driver_command[2])
       RARCH_ERR("Failed to initialize the UDS command interface.\n");
-   #endif
+#endif
 }
 
 static void input_driver_deinit_command(struct rarch_state *p_rarch)
@@ -27565,7 +27557,8 @@ static bool audio_driver_deinit(struct rarch_state *p_rarch)
    return audio_driver_deinit_internal(p_rarch);
 }
 
-static bool audio_driver_find_driver(struct rarch_state *p_rarch)
+static bool audio_driver_find_driver(struct rarch_state *p_rarch, const char *prefix,
+      bool verbosity_enabled)
 {
    settings_t *settings    = p_rarch->configuration_settings;
    int i                   = (int)driver_find_index(
@@ -27577,18 +27570,18 @@ static bool audio_driver_find_driver(struct rarch_state *p_rarch)
          audio_drivers[i];
    else
    {
-      if (verbosity_is_enabled())
+      if (verbosity_enabled)
       {
          unsigned d;
-         RARCH_ERR("Couldn't find any audio driver named \"%s\"\n",
+         RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
                settings->arrays.audio_driver);
-         RARCH_LOG_OUTPUT("Available audio drivers are:\n");
+         RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
          for (d = 0; audio_drivers[d]; d++)
          {
             if (audio_drivers[d])
                RARCH_LOG_OUTPUT("\t%s\n", audio_drivers[d]->ident);
          }
-         RARCH_WARN("Going to default to first audio driver...\n");
+         RARCH_WARN("Going to default to first %s...\n", prefix);
       }
 
       p_rarch->current_audio = (const audio_driver_t*)
@@ -27622,6 +27615,7 @@ static bool audio_driver_init_internal(
    size_t outsamples_max   = AUDIO_CHUNK_SIZE_NONBLOCKING * 2 * AUDIO_MAX_RATIO * slowmotion_ratio;
    int16_t *conv_buf       = (int16_t*)memalign_alloc(64, outsamples_max * sizeof(int16_t));
    float *audio_buf        = (float*)memalign_alloc(64, AUDIO_CHUNK_SIZE_NONBLOCKING * 2 * sizeof(float));
+   bool verbosity_enabled  = verbosity_is_enabled();
 
    convert_s16_to_float_init_simd();
    convert_float_to_s16_init_simd();
@@ -27660,7 +27654,7 @@ static bool audio_driver_init_internal(
       return false;
    }
 
-   audio_driver_find_driver(p_rarch);
+   audio_driver_find_driver(p_rarch, "audio driver", verbosity_enabled);
 
    if (!p_rarch->current_audio || !p_rarch->current_audio->init)
    {
@@ -29497,7 +29491,7 @@ static void video_driver_init_input(input_driver_t *tmp)
    if (tmp)
       *input = tmp;
    else
-      input_driver_find_driver(p_rarch);
+      input_driver_find_driver(p_rarch, "input driver");
 
    /* This should never really happen as tmp (driver.input) is always
     * found before this in find_driver_input(), or we have aborted
@@ -29759,6 +29753,7 @@ static bool video_driver_init_internal(bool *video_is_threaded)
    struct retro_game_geometry *geom       = &p_rarch->video_driver_av_info.geometry;
    const enum retro_pixel_format
       video_driver_pix_fmt                = p_rarch->video_driver_pix_fmt;
+   bool verbosity_enabled                 = verbosity_is_enabled();
 #ifdef HAVE_VIDEO_FILTER
    const char *path_softfilter_plugin     = settings->paths.path_softfilter_plugin;
 
@@ -29884,7 +29879,7 @@ static bool video_driver_init_internal(bool *video_is_threaded)
 
    tmp                               = p_rarch->current_input;
    /* Need to grab the "real" video driver interface on a reinit. */
-   video_driver_find_driver(p_rarch);
+   video_driver_find_driver(p_rarch, "video driver", verbosity_enabled);
 
 #ifdef HAVE_THREADS
    video.is_threaded                 = VIDEO_DRIVER_IS_THREADED_INTERNAL();
@@ -30690,7 +30685,7 @@ static void video_driver_restore_cached(struct rarch_state *p_rarch,
    }
 }
 
-static bool video_driver_find_driver(struct rarch_state *p_rarch)
+static bool video_driver_find_driver(struct rarch_state *p_rarch, const char *prefix, bool verbosity_enabled)
 {
    int i;
    settings_t          *settings           = p_rarch->configuration_settings;
@@ -30778,15 +30773,15 @@ static bool video_driver_find_driver(struct rarch_state *p_rarch)
       p_rarch->current_video = (video_driver_t*)video_drivers[i];
    else
    {
-      if (verbosity_is_enabled())
+      if (verbosity_enabled)
       {
          unsigned d;
-         RARCH_ERR("Couldn't find any video driver named \"%s\"\n",
+         RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
                settings->arrays.video_driver);
-         RARCH_LOG_OUTPUT("Available video drivers are:\n");
+         RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
          for (d = 0; video_drivers[d]; d++)
             RARCH_LOG_OUTPUT("\t%s\n", video_drivers[d]->ident);
-         RARCH_WARN("Going to default to first video driver...\n");
+         RARCH_WARN("Going to default to first %s...\n", prefix);
       }
 
       if (!(p_rarch->current_video = (video_driver_t*)video_drivers[0]))
@@ -30831,7 +30826,7 @@ static void video_driver_reinit_context(struct rarch_state *p_rarch,
    memcpy(hwr, &hwr_copy, sizeof(*hwr));
    p_rarch->hw_render_context_negotiation = iface;
 
-   drivers_init(p_rarch, flags);
+   drivers_init(p_rarch, flags, verbosity_is_enabled());
 }
 
 void video_driver_reinit(int flags)
@@ -32195,7 +32190,8 @@ const char* config_get_location_driver_options(void)
    return char_list_new_special(STRING_LIST_LOCATION_DRIVERS, NULL);
 }
 
-static void find_location_driver(struct rarch_state *p_rarch)
+static void location_driver_find_driver(struct rarch_state *p_rarch, const char *prefix,
+      bool verbosity_enabled)
 {
    settings_t         *settings = p_rarch->configuration_settings;
    int i                        = (int)driver_find_index(
@@ -32210,13 +32206,13 @@ static void find_location_driver(struct rarch_state *p_rarch)
       if (verbosity_is_enabled())
       {
          unsigned d;
-         RARCH_ERR("Couldn't find any location driver named \"%s\"\n",
+         RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
                settings->arrays.location_driver);
-         RARCH_LOG_OUTPUT("Available location drivers are:\n");
+         RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
          for (d = 0; location_drivers[d]; d++)
             RARCH_LOG_OUTPUT("\t%s\n", location_drivers[d]->ident);
 
-         RARCH_WARN("Going to default to first location driver...\n");
+         RARCH_WARN("Going to default to first %s...\n", prefix);
       }
 
       p_rarch->location_driver = (const location_driver_t*)location_drivers[0];
@@ -32319,7 +32315,7 @@ static bool driver_location_get_position(double *lat, double *lon,
    return false;
 }
 
-static void init_location(void)
+static void init_location(bool verbosity_enabled)
 {
    struct rarch_state  *p_rarch = &rarch_st;
    rarch_system_info_t *system  = &p_rarch->runloop_system;
@@ -32328,7 +32324,7 @@ static void init_location(void)
    if (p_rarch->location_data)
       return;
 
-   find_location_driver(p_rarch);
+   location_driver_find_driver(p_rarch, "location driver", verbosity_enabled);
 
    p_rarch->location_data = p_rarch->location_driver->init();
 
@@ -32403,7 +32399,7 @@ static void driver_camera_stop(void)
       p_rarch->camera_driver->stop(p_rarch->camera_data);
 }
 
-static void camera_driver_find_driver(struct rarch_state *p_rarch)
+static void camera_driver_find_driver(struct rarch_state *p_rarch, const char *prefix)
 {
    settings_t         *settings = p_rarch->configuration_settings;
    int i                        = (int)driver_find_index(
@@ -32417,9 +32413,9 @@ static void camera_driver_find_driver(struct rarch_state *p_rarch)
       if (verbosity_is_enabled())
       {
          unsigned d;
-         RARCH_ERR("Couldn't find any camera driver named \"%s\"\n",
+         RARCH_ERR("Couldn't find any %s named \"%s\"\n", prefix,
                settings->arrays.camera_driver);
-         RARCH_LOG_OUTPUT("Available camera drivers are:\n");
+         RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
          for (d = 0; camera_drivers[d]; d++)
          {
             if (camera_drivers[d])
@@ -32428,7 +32424,7 @@ static void camera_driver_find_driver(struct rarch_state *p_rarch)
             }
          }
 
-         RARCH_WARN("Going to default to first camera driver...\n");
+         RARCH_WARN("Going to default to first %s...\n", prefix);
       }
 
       p_rarch->camera_driver = (const camera_driver_t*)camera_drivers[0];
@@ -32537,7 +32533,8 @@ void driver_set_nonblock_state(void)
  * Initializes drivers.
  * @flags determines which drivers get initialized.
  **/
-static void drivers_init(struct rarch_state *p_rarch, int flags)
+static void drivers_init(struct rarch_state *p_rarch, int flags,
+      bool verbosity_enabled)
 {
 #ifdef HAVE_MENU
    struct menu_state  *menu_st = &p_rarch->menu_driver_state;
@@ -32605,7 +32602,7 @@ static void drivers_init(struct rarch_state *p_rarch, int flags)
          /* Resource leaks will follow if camera is initialized twice. */
          if (!p_rarch->camera_data)
          {
-            camera_driver_find_driver(p_rarch);
+            camera_driver_find_driver(p_rarch, "camera driver");
 
             if (p_rarch->camera_driver)
             {
@@ -32641,7 +32638,7 @@ static void drivers_init(struct rarch_state *p_rarch, int flags)
    {
       /* Only initialize location driver if we're ever going to use it. */
       if (p_rarch->location_driver_active)
-         init_location();
+         init_location(verbosity_is_enabled());
    }
 
    core_info_init_current_core();
@@ -33921,13 +33918,14 @@ static void retroarch_print_help(const char *arg0)
  * with command line options overriding the config file.
  *
  **/
-static void retroarch_parse_input_and_config(
+static bool retroarch_parse_input_and_config(
       struct rarch_state *p_rarch,
       global_t *global,
       int argc, char *argv[])
 {
    unsigned i;
    static bool           first_run = true;
+   bool verbosity_enabled          = false;
    const char           *optstring = NULL;
    bool              explicit_menu = false;
    bool                 cli_active = false;
@@ -34562,7 +34560,9 @@ static void retroarch_parse_input_and_config(
       }
    }
 
-   if (verbosity_is_enabled())
+   verbosity_enabled = verbosity_is_enabled();
+
+   if (verbosity_enabled)
       rarch_log_file_init(
             p_rarch->configuration_settings->bools.log_to_file,
             p_rarch->configuration_settings->bools.log_to_file_timestamp,
@@ -34626,6 +34626,8 @@ static void retroarch_parse_input_and_config(
    if (retroarch_override_setting_is_set(RARCH_OVERRIDE_SETTING_STATE_PATH, NULL) &&
          path_is_directory(global->name.savestate))
       dir_set(RARCH_DIR_SAVESTATE, global->name.savestate);
+
+   return verbosity_enabled;
 }
 
 static bool retroarch_validate_per_core_options(char *s,
@@ -34721,10 +34723,12 @@ static void retroarch_validate_cpu_features(void)
 }
 
 #ifdef HAVE_MENU
-static bool find_menu_driver(
+static void menu_driver_find_driver(
       struct rarch_state *p_rarch,
-      settings_t *settings)
+      const char *prefix,
+      bool verbosity_enabled)
 {
+   settings_t *settings = p_rarch->configuration_settings;
    int i                = (int)driver_find_index(
          "menu_driver",
          settings->arrays.menu_driver);
@@ -34734,12 +34738,12 @@ static bool find_menu_driver(
          menu_ctx_drivers[i];
    else
    {
-      if (verbosity_is_enabled())
+      if (verbosity_enabled)
       {
          unsigned d;
-         RARCH_WARN("Couldn't find any menu driver named \"%s\"\n",
+         RARCH_WARN("Couldn't find any %s named \"%s\"\n", prefix,
                settings->arrays.menu_driver);
-         RARCH_LOG_OUTPUT("Available menu drivers are:\n");
+         RARCH_LOG_OUTPUT("Available %ss are:\n", prefix);
          for (d = 0; menu_ctx_drivers[d]; d++)
          {
             if (menu_ctx_drivers[d])
@@ -34747,17 +34751,15 @@ static bool find_menu_driver(
                RARCH_LOG_OUTPUT("\t%s\n", menu_ctx_drivers[d]->ident);
             }
          }
-         RARCH_WARN("Going to default to first menu driver...\n");
+         RARCH_WARN("Going to default to first %s...\n", prefix);
       }
 
       p_rarch->menu_driver_ctx = (const menu_ctx_driver_t*)
          menu_ctx_drivers[0];
 
       if (!p_rarch->menu_driver_ctx)
-         return false;
+         retroarch_fail(1, "find_menu_driver()");
    }
-
-   return true;
 }
 #endif
 
@@ -34796,6 +34798,7 @@ bool retroarch_main_init(int argc, char *argv[])
 #if defined(DEBUG) && defined(HAVE_DRMINGW)
    char log_file_name[128];
 #endif
+   bool verbosity_enabled       = false;
    bool           init_failed   = false;
    struct rarch_state *p_rarch  = &rarch_st;
    global_t            *global  = &p_rarch->g_extern;
@@ -34816,7 +34819,7 @@ bool retroarch_main_init(int argc, char *argv[])
    /* Have to initialise non-file logging once at the start... */
    retro_main_log_file_init(NULL, false);
 
-   retroarch_parse_input_and_config(p_rarch, &p_rarch->g_extern, argc, argv);
+   verbosity_enabled = retroarch_parse_input_and_config(p_rarch, &p_rarch->g_extern, argc, argv);
 
 #ifdef HAVE_ACCESSIBILITY
    if (is_accessibility_enabled(p_rarch))
@@ -34829,7 +34832,7 @@ bool retroarch_main_init(int argc, char *argv[])
    }
 #endif
 
-   if (verbosity_is_enabled())
+   if (verbosity_enabled)
    {
       {
          char str_output[256];
@@ -34939,15 +34942,15 @@ bool retroarch_main_init(int argc, char *argv[])
     * Attempts to find a default driver for
     * all driver types.
     */
-   audio_driver_find_driver(p_rarch);
-   video_driver_find_driver(p_rarch);
-   input_driver_find_driver(p_rarch);
-   camera_driver_find_driver(p_rarch);
+   audio_driver_find_driver(p_rarch,  "audio driver", verbosity_enabled);
+   video_driver_find_driver(p_rarch,  "video driver", verbosity_enabled);
+   input_driver_find_driver(p_rarch,  "input driver");
+   camera_driver_find_driver(p_rarch, "camera driver");
    bluetooth_driver_ctl(RARCH_BLUETOOTH_CTL_FIND_DRIVER, NULL);
    wifi_driver_ctl(RARCH_WIFI_CTL_FIND_DRIVER, NULL);
-   find_location_driver(p_rarch);
+   location_driver_find_driver(p_rarch, "location driver", verbosity_enabled);
 #ifdef HAVE_MENU
-   find_menu_driver(p_rarch, p_rarch->configuration_settings);
+   menu_driver_find_driver(p_rarch, "menu driver",    verbosity_enabled);
 #endif
 
    /* Attempt to initialize core */
@@ -34986,7 +34989,7 @@ bool retroarch_main_init(int argc, char *argv[])
    cheat_manager_state_free();
    command_event_init_cheats(p_rarch->configuration_settings, p_rarch);
 #endif
-   drivers_init(p_rarch, DRIVERS_CMD_ALL);
+   drivers_init(p_rarch, DRIVERS_CMD_ALL, verbosity_enabled);
 #ifdef HAVE_COMMAND
    input_driver_deinit_command(p_rarch);
    input_driver_init_command(p_rarch);
