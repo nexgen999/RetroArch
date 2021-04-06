@@ -5638,8 +5638,11 @@ bool menu_shader_manager_set_preset(struct video_shader *shader,
 {
    bool refresh                  = false;
    bool ret                      = false;
+   struct rarch_state  *p_rarch  = &rarch_st;
+   settings_t *settings          = p_rarch->configuration_settings;
 
-   if (apply && !retroarch_apply_shader(type, preset_path, true))
+   if (apply && !retroarch_apply_shader(p_rarch, settings,
+            type, preset_path, true))
       goto clear;
 
    if (string_is_empty(preset_path))
@@ -5681,6 +5684,8 @@ clear:
 }
 
 static bool menu_shader_manager_save_preset_internal(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
       const struct video_shader *shader, 
       const char *basename,
       const char *dir_video_shader,
@@ -5694,9 +5699,6 @@ static bool menu_shader_manager_save_preset_internal(
    enum rarch_shader_type type    = RARCH_SHADER_NONE;
    char *preset_path              = NULL;
    size_t i                       = 0;
-
-   struct rarch_state  *p_rarch   = &rarch_st;
-   settings_t *settings           = p_rarch->configuration_settings;
    bool save_reference            = 
       settings->bools.video_shader_preset_save_reference_enable;
 
@@ -5815,6 +5817,9 @@ static bool menu_shader_manager_save_preset_internal(
 }
 
 static bool menu_shader_manager_operate_auto_preset(
+      struct rarch_state *p_rarch,
+      struct retro_system_info *system,
+      settings_t *settings,
       enum auto_shader_operation op,
       const struct video_shader *shader,
       const char *dir_video_shader,
@@ -5825,8 +5830,6 @@ static bool menu_shader_manager_operate_auto_preset(
    char config_directory[PATH_MAX_LENGTH];
    char tmp[PATH_MAX_LENGTH];
    char file[PATH_MAX_LENGTH];
-   struct rarch_state *p_rarch      = &rarch_st;
-   struct retro_system_info *system = &p_rarch->runloop_system.info;
    const char *core_name            = system ? system->library_name : NULL;
    const char *auto_preset_dirs[3]  = {0};
 
@@ -5884,6 +5887,7 @@ static bool menu_shader_manager_operate_auto_preset(
    {
       case AUTO_SHADER_OP_SAVE:
          return menu_shader_manager_save_preset_internal(
+               p_rarch, settings,
                shader, file,
                dir_video_shader,
                apply,
@@ -5996,7 +6000,11 @@ bool menu_shader_manager_save_auto_preset(
       const char *dir_menu_config,
       bool apply)
 {
+   struct rarch_state *p_rarch      = &rarch_st;
+   struct retro_system_info *system = &p_rarch->runloop_system.info;
+   settings_t *settings             = p_rarch->configuration_settings;
    return menu_shader_manager_operate_auto_preset(
+         p_rarch, system, settings,
          AUTO_SHADER_OP_SAVE, shader, 
          dir_video_shader,
          dir_menu_config,
@@ -6019,9 +6027,11 @@ bool menu_shader_manager_save_preset(const struct video_shader *shader,
       bool apply)
 {
    char config_directory[PATH_MAX_LENGTH];
-   const char *preset_dirs[3] = {0};
+   const char *preset_dirs[3]  = {0};
+   struct rarch_state *p_rarch = &rarch_st;
+   settings_t *settings        = p_rarch->configuration_settings;
 
-   config_directory[0] = '\0';
+   config_directory[0]         = '\0';
 
    if (!path_is_empty(RARCH_PATH_CONFIG))
       fill_pathname_basedir(
@@ -6034,6 +6044,7 @@ bool menu_shader_manager_save_preset(const struct video_shader *shader,
    preset_dirs[2] = config_directory;
 
    return menu_shader_manager_save_preset_internal(
+         p_rarch, settings,
          shader, basename,
          dir_video_shader,
          apply,
@@ -6052,7 +6063,11 @@ bool menu_shader_manager_remove_auto_preset(
       const char *dir_video_shader,
       const char *dir_menu_config)
 {
+   struct rarch_state *p_rarch      = &rarch_st;
+   struct retro_system_info *system = &p_rarch->runloop_system.info;
+   settings_t *settings             = p_rarch->configuration_settings;
    return menu_shader_manager_operate_auto_preset(
+         p_rarch, system, settings,
          AUTO_SHADER_OP_REMOVE, NULL,
          dir_video_shader,
          dir_menu_config,
@@ -6070,7 +6085,11 @@ bool menu_shader_manager_auto_preset_exists(
       const char *dir_video_shader,
       const char *dir_menu_config)
 {
+   struct rarch_state *p_rarch      = &rarch_st;
+   struct retro_system_info *system = &p_rarch->runloop_system.info;
+   settings_t *settings             = p_rarch->configuration_settings;
    return menu_shader_manager_operate_auto_preset(
+         p_rarch, system, settings,
          AUTO_SHADER_OP_EXISTS, NULL,
          dir_video_shader,
          dir_menu_config,
@@ -6280,6 +6299,7 @@ void discord_avatar_set_ready(bool ready)
 
 #ifdef HAVE_MENU
 static bool discord_download_avatar(
+      discord_state_t *discord_st,
       const char* user_id, const char* avatar_id)
 {
    static char url[PATH_MAX_LENGTH];
@@ -6287,8 +6307,6 @@ static bool discord_download_avatar(
    static char full_path[PATH_MAX_LENGTH];
    static char buf[PATH_MAX_LENGTH];
    file_transfer_t     *transf = NULL;
-   struct rarch_state *p_rarch = &rarch_st;
-   discord_state_t *discord_st = &p_rarch->discord_st;
 
    RARCH_LOG("[DISCORD]: User avatar ID: %s\n", user_id);
 
@@ -6335,7 +6353,8 @@ static void handle_discord_ready(const DiscordUser* connectedUser)
       connectedUser->discriminator);
 
 #ifdef HAVE_MENU
-   discord_download_avatar(connectedUser->userId, connectedUser->avatar);
+   discord_download_avatar(discord_st,
+         connectedUser->userId, connectedUser->avatar);
 #endif
 }
 
@@ -6442,6 +6461,7 @@ static void handle_discord_join_request(const DiscordUser* request)
    char buf[PATH_MAX_LENGTH];
 #endif
    menu_input_ctx_line_t line;
+   struct rarch_state *p_rarch = &rarch_st;
 
    RARCH_LOG("[DISCORD]: Join request from %s#%s - %s %s\n",
       request->username,
@@ -6449,7 +6469,8 @@ static void handle_discord_join_request(const DiscordUser* request)
       request->userId,
       request->avatar);
 
-   discord_download_avatar(request->userId, request->avatar);
+   discord_download_avatar(&p_rarch->discord_st,
+         request->userId, request->avatar);
 
 #if 0
    /* TODO/FIXME: Needs in-game widgets */
@@ -7634,11 +7655,12 @@ static void netplay_disconnect(
  * Returns: true (1) if the frontend is cleared to emulate the frame, false (0)
  * if we're stalled or paused
  **/
-static bool netplay_pre_frame(struct rarch_state *p_rarch,
+static bool netplay_pre_frame(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
       netplay_t *netplay)
 {
    bool sync_stalled     = false;
-   settings_t *settings  = p_rarch->configuration_settings;
 
    retro_assert(netplay);
 
@@ -8025,11 +8047,11 @@ static void deinit_netplay(struct rarch_state *p_rarch)
  **/
 static bool init_netplay(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       void *direct_host,
       const char *server, unsigned port)
 {
    struct retro_callbacks cbs    = {0};
-   settings_t *settings          = p_rarch->configuration_settings;
    uint64_t serialization_quirks = 0;
    uint64_t quirks               = 0;
    bool _netplay_is_client       = p_rarch->netplay_is_client;
@@ -8207,7 +8229,8 @@ bool netplay_driver_ctl(enum rarch_netplay_ctl_state state, void *data)
          netplay_post_frame(p_rarch, netplay);
          break;
       case RARCH_NETPLAY_CTL_PRE_FRAME:
-         ret = netplay_pre_frame(p_rarch, netplay);
+         ret = netplay_pre_frame(p_rarch, p_rarch->configuration_settings,
+               netplay);
          goto done;
       case RARCH_NETPLAY_CTL_GAME_WATCH:
          netplay_toggle_play_spectate(netplay);
@@ -8658,7 +8681,8 @@ const char *char_list_new_special(enum string_list_type type, void *data)
    return options;
 }
 
-static void path_set_redirect(struct rarch_state *p_rarch)
+static void path_set_redirect(struct rarch_state *p_rarch,
+      settings_t *settings)
 {
    char content_dir_name[PATH_MAX_LENGTH];
    char new_savefile_dir[PATH_MAX_LENGTH];
@@ -8667,7 +8691,6 @@ static void path_set_redirect(struct rarch_state *p_rarch)
    const char *old_savefile_dir                = p_rarch->dir_savefile;
    const char *old_savestate_dir               = p_rarch->dir_savestate;
    struct retro_system_info *system            = &p_rarch->runloop_system.info;
-   settings_t *settings                        = p_rarch->configuration_settings;
    bool sort_savefiles_enable                  = settings->bools.sort_savefiles_enable;
    bool sort_savefiles_by_content_enable       = settings->bools.sort_savefiles_by_content_enable;
    bool sort_savestates_enable                 = settings->bools.sort_savestates_enable;
@@ -9225,12 +9248,9 @@ size_t path_get_realsize(enum rarch_path_type type)
    return 0;
 }
 
-static void path_set_names(struct rarch_state *p_rarch, const char *path)
+static void path_set_names(struct rarch_state *p_rarch,
+      global_t *global)
 {
-   global_t            *global = &p_rarch->g_extern;
-
-   path_set_basename(p_rarch, path);
-
    if (global)
    {
       if (!retroarch_override_setting_is_set(
@@ -9252,8 +9272,6 @@ static void path_set_names(struct rarch_state *p_rarch, const char *path)
                ".cht", sizeof(global->name.cheatfile));
 #endif
    }
-
-   path_set_redirect(p_rarch);
 }
 
 bool path_set(enum rarch_path_type type, const char *path)
@@ -9270,7 +9288,9 @@ bool path_set(enum rarch_path_type type, const char *path)
                sizeof(p_rarch->path_main_basename));
          break;
       case RARCH_PATH_NAMES:
-         path_set_names(p_rarch, path);
+         path_set_basename(p_rarch, path);
+         path_set_names(p_rarch, &p_rarch->g_extern);
+         path_set_redirect(p_rarch, p_rarch->configuration_settings);
          break;
       case RARCH_PATH_CORE:
          strlcpy(p_rarch->path_libretro, path,
@@ -9484,11 +9504,11 @@ static void path_deinit_subsystem(struct rarch_state *p_rarch)
    p_rarch->subsystem_fullpaths = NULL;
 }
 
-static void dir_free_shader(struct rarch_state *p_rarch)
+static void dir_free_shader(struct rarch_state *p_rarch,
+      settings_t *settings)
 {
    struct rarch_dir_shader_list *dir_list =
       (struct rarch_dir_shader_list*)&p_rarch->dir_shader_list;
-   settings_t *settings                   = p_rarch->configuration_settings;
    bool shader_remember_last_dir          = settings->bools.video_shader_remember_last_dir;
 
    if (dir_list->shader_list)
@@ -9591,7 +9611,7 @@ static void dir_init_shader(struct rarch_state *p_rarch)
 #endif
 
    /* Always free existing shader list */
-   dir_free_shader(p_rarch);
+   dir_free_shader(p_rarch, settings);
 
    /* Try directory of last selected shader preset */
    if (shader_remember_last_dir &&
@@ -10006,7 +10026,6 @@ static void menu_input_search_cb(void *userdata, const char *str)
    else
    {
       size_t idx                     = 0;
-      struct rarch_state   *p_rarch  = &rarch_st;
       struct menu_state    *menu_st  = &p_rarch->menu_driver_state;
       menu_list_t *menu_list         = menu_st->entries.list;
       file_list_t *selection_buf     = menu_list ? MENU_LIST_GET_SELECTION(menu_list, (unsigned)0) : NULL;
@@ -10600,13 +10619,13 @@ bool command_write_memory(command_t *cmd, const char *arg)
 #endif
 
 static bool retroarch_apply_shader(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
       enum rarch_shader_type type,
       const char *preset_path, bool message)
 {
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
    char msg[256];
-   struct rarch_state  *p_rarch = &rarch_st;
-   settings_t      *settings    = p_rarch->configuration_settings;
    const char      *core_name   = p_rarch->runloop_system.info.library_name;
    const char      *preset_file = NULL;
 #ifdef HAVE_MENU
@@ -10720,7 +10739,7 @@ bool command_set_shader(command_t *cmd, const char *arg)
       }
    }
 
-   return retroarch_apply_shader(type, arg, true);
+   return retroarch_apply_shader(p_rarch, settings, type, arg, true);
 }
 #endif
 
@@ -12571,7 +12590,7 @@ static bool command_event_init_core(
 #endif
 
    /* Per-core saves: reset redirection paths */
-   path_set_redirect(p_rarch);
+   path_set_redirect(p_rarch, settings);
 
    video_driver_set_cached_frame_ptr(NULL);
 
@@ -14225,6 +14244,7 @@ bool command_event(enum event_command cmd, void *data)
             command_event(CMD_EVENT_NETPLAY_DEINIT, NULL);
 
             if (!init_netplay(p_rarch,
+                     p_rarch->configuration_settings,
                      NULL,
                      hostname 
                      ? hostname 
@@ -14263,6 +14283,7 @@ bool command_event(enum event_command cmd, void *data)
 
             if (!init_netplay(
                      p_rarch,
+                     p_rarch->configuration_settings,
                      NULL,
                      hostname->elems[0].data,
                      !string_is_empty(hostname->elems[1].data)
@@ -27627,10 +27648,11 @@ static bool audio_driver_deinit(struct rarch_state *p_rarch)
    return audio_driver_deinit_internal(p_rarch);
 }
 
-static bool audio_driver_find_driver(struct rarch_state *p_rarch, const char *prefix,
+static bool audio_driver_find_driver(struct rarch_state *p_rarch,
+      settings_t *settings,
+      const char *prefix,
       bool verbosity_enabled)
 {
-   settings_t *settings    = p_rarch->configuration_settings;
    int i                   = (int)driver_find_index(
          "audio_driver",
          settings->arrays.audio_driver);
@@ -27666,12 +27688,12 @@ static bool audio_driver_find_driver(struct rarch_state *p_rarch, const char *pr
 
 static bool audio_driver_init_internal(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       bool audio_cb_inited)
 {
    unsigned new_rate       = 0;
    float  *samples_buf     = NULL;
    size_t max_bufsamples   = AUDIO_CHUNK_SIZE_NONBLOCKING * 2;
-   settings_t *settings    = p_rarch->configuration_settings;
    bool audio_enable       = settings->bools.audio_enable;
    bool audio_sync         = settings->bools.audio_sync;
    bool audio_rate_control = settings->bools.audio_rate_control;
@@ -27724,7 +27746,8 @@ static bool audio_driver_init_internal(
       return false;
    }
 
-   audio_driver_find_driver(p_rarch, "audio driver", verbosity_enabled);
+   audio_driver_find_driver(p_rarch, settings,
+         "audio driver", verbosity_enabled);
 
    if (!p_rarch->current_audio || !p_rarch->current_audio->init)
    {
@@ -29684,7 +29707,7 @@ static void video_driver_free_internal(struct rarch_state *p_rarch)
 #ifdef HAVE_VIDEO_FILTER
    video_driver_filter_free();
 #endif
-   dir_free_shader(p_rarch);
+   dir_free_shader(p_rarch, p_rarch->configuration_settings);
 
 #ifdef HAVE_THREADS
    if (is_threaded)
@@ -29851,7 +29874,7 @@ static bool video_driver_init_internal(
    video_driver_set_viewport_config(geom, settings);
 
    /* Update CUSTOM viewport. */
-   custom_vp = video_viewport_get_custom();
+   custom_vp = &settings->video_viewport_custom;
 
    if (settings->uints.video_aspect_ratio_idx == ASPECT_RATIO_CUSTOM)
    {
@@ -29907,12 +29930,12 @@ static bool video_driver_init_internal(
    else
       RARCH_LOG("[Video]: Video @ fullscreen\n");
 
-   video_driver_display_type_set(RARCH_DISPLAY_NONE);
-   video_driver_display_set(0);
-   video_driver_display_userdata_set(0);
-   video_driver_window_set(0);
+   p_rarch->video_driver_display_type     = RARCH_DISPLAY_NONE;
+   p_rarch->video_driver_display          = 0;
+   p_rarch->video_driver_display_userdata = 0;
+   p_rarch->video_driver_window           = 0;
 
-   p_rarch->video_driver_scaler_ptr  = video_driver_pixel_converter_init(
+   p_rarch->video_driver_scaler_ptr       = video_driver_pixel_converter_init(
          p_rarch->video_driver_pix_fmt,
          VIDEO_DRIVER_GET_HW_CONTEXT_INTERNAL(p_rarch),
          RARCH_SCALE_BASE * scale);
@@ -29954,7 +29977,8 @@ static bool video_driver_init_internal(
 
    tmp                               = p_rarch->current_input;
    /* Need to grab the "real" video driver interface on a reinit. */
-   video_driver_find_driver(p_rarch, "video driver", verbosity_enabled);
+   video_driver_find_driver(p_rarch, settings,
+         "video driver", verbosity_enabled);
 
 #ifdef HAVE_THREADS
    video.is_threaded                 = VIDEO_DRIVER_IS_THREADED_INTERNAL();
@@ -30413,11 +30437,11 @@ void video_driver_cached_frame(void)
 }
 
 static void video_driver_monitor_adjust_system_rates(
-      struct rarch_state *p_rarch)
+      struct rarch_state *p_rarch,
+      settings_t *settings,
+      const struct retro_system_timing *info
+      )
 {
-   settings_t *settings                   = p_rarch->configuration_settings;
-   const struct retro_system_timing *info = (const struct retro_system_timing*)
-      &p_rarch->video_driver_av_info.timing;
    float video_refresh_rate               = settings->floats.video_refresh_rate;
    bool vrr_runloop_enable                = settings->bools.vrr_runloop_enable;
    float audio_max_timing_skew            = settings->floats.audio_max_timing_skew;
@@ -30544,7 +30568,9 @@ void video_driver_set_viewport_core(void)
 
 void video_driver_reset_custom_viewport(void)
 {
-   struct video_viewport *custom_vp = video_viewport_get_custom();
+   struct rarch_state *p_rarch      = &rarch_st;
+   settings_t             *settings = p_rarch->configuration_settings;
+   struct video_viewport *custom_vp = &settings->video_viewport_custom;
 
    custom_vp->width  = 0;
    custom_vp->height = 0;
@@ -30672,7 +30698,7 @@ void video_driver_update_viewport(
 #if defined(HAVE_MENU)
       if (video_aspect_ratio_idx == ASPECT_RATIO_CUSTOM)
       {
-         const struct video_viewport* custom = video_viewport_get_custom();
+         const struct video_viewport *custom = &settings->video_viewport_custom;
 
          vp->x      = custom->x;
          vp->y      = custom->y;
@@ -30760,10 +30786,11 @@ static void video_driver_restore_cached(struct rarch_state *p_rarch,
    }
 }
 
-static bool video_driver_find_driver(struct rarch_state *p_rarch, const char *prefix, bool verbosity_enabled)
+static bool video_driver_find_driver(struct rarch_state *p_rarch,
+      settings_t *settings,
+      const char *prefix, bool verbosity_enabled)
 {
    int i;
-   settings_t          *settings           = p_rarch->configuration_settings;
 
    if (video_driver_is_hw_context())
    {
@@ -30982,7 +31009,7 @@ void video_viewport_get_scaled_integer(struct video_viewport *vp,
 
    if (video_aspect_ratio_idx == ASPECT_RATIO_CUSTOM)
    {
-      struct video_viewport *custom = video_viewport_get_custom();
+      struct video_viewport *custom = &settings->video_viewport_custom;
 
       if (custom)
       {
@@ -31793,15 +31820,15 @@ void video_driver_get_window_title(char *buf, unsigned len)
  * otherwise NULL.
  **/
 static const gfx_ctx_driver_t *video_context_driver_init(
-      void *data,
+      struct rarch_state *p_rarch,
       settings_t *settings,
+      void *data,
       const gfx_ctx_driver_t *ctx,
       const char *ident,
       enum gfx_ctx_api api, unsigned major,
       unsigned minor, bool hw_render_ctx,
       void **ctx_data)
 {
-   struct rarch_state *p_rarch = &rarch_st;
    bool  video_shared_context  = settings->bools.video_shared_context || libretro_get_shared_context();
 
    if (!ctx->bind_api(data, api, major, minor))
@@ -31824,14 +31851,15 @@ static const gfx_ctx_driver_t *video_context_driver_init(
 }
 
 #ifdef HAVE_VULKAN
-static const gfx_ctx_driver_t *vk_context_driver_init_first(void *data,
+static const gfx_ctx_driver_t *vk_context_driver_init_first(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
+      void *data,
       const char *ident, enum gfx_ctx_api api, unsigned major,
       unsigned minor, bool hw_render_ctx, void **ctx_data)
 {
    unsigned j;
-   struct rarch_state *p_rarch = &rarch_st;
-   settings_t *settings        = p_rarch->configuration_settings;
-   int                       i = -1;
+   int i = -1;
    
    for (j = 0; gfx_ctx_vk_drivers[j]; j++)
    {
@@ -31844,8 +31872,9 @@ static const gfx_ctx_driver_t *vk_context_driver_init_first(void *data,
 
    if (i >= 0)
    {
-      const gfx_ctx_driver_t *ctx = video_context_driver_init(data,
+      const gfx_ctx_driver_t *ctx = video_context_driver_init(p_rarch,
             settings,
+            data,
             gfx_ctx_vk_drivers[i], ident,
             api, major, minor, hw_render_ctx, ctx_data);
       if (ctx)
@@ -31858,8 +31887,10 @@ static const gfx_ctx_driver_t *vk_context_driver_init_first(void *data,
    for (i = 0; gfx_ctx_vk_drivers[i]; i++)
    {
       const gfx_ctx_driver_t *ctx =
-         video_context_driver_init(data,
+         video_context_driver_init(
+               p_rarch,
                settings,
+               data,
                gfx_ctx_vk_drivers[i], ident,
                api, major, minor, hw_render_ctx, ctx_data);
 
@@ -31874,14 +31905,15 @@ static const gfx_ctx_driver_t *vk_context_driver_init_first(void *data,
 }
 #endif
 
-static const gfx_ctx_driver_t *gl_context_driver_init_first(void *data,
+static const gfx_ctx_driver_t *gl_context_driver_init_first(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
+      void *data,
       const char *ident, enum gfx_ctx_api api, unsigned major,
       unsigned minor, bool hw_render_ctx, void **ctx_data)
 {
    unsigned j;
-   struct rarch_state *p_rarch = &rarch_st;
-   settings_t *settings        = p_rarch->configuration_settings;
-   int                       i = -1;
+   int i = -1;
    
    for (j = 0; gfx_ctx_gl_drivers[j]; j++)
    {
@@ -31894,8 +31926,10 @@ static const gfx_ctx_driver_t *gl_context_driver_init_first(void *data,
 
    if (i >= 0)
    {
-      const gfx_ctx_driver_t *ctx = video_context_driver_init(data,
+      const gfx_ctx_driver_t *ctx = video_context_driver_init(
+            p_rarch,
             settings,
+            data,
             gfx_ctx_gl_drivers[i], ident,
             api, major, minor, hw_render_ctx, ctx_data);
       if (ctx)
@@ -31908,8 +31942,10 @@ static const gfx_ctx_driver_t *gl_context_driver_init_first(void *data,
    for (i = 0; gfx_ctx_gl_drivers[i]; i++)
    {
       const gfx_ctx_driver_t *ctx =
-         video_context_driver_init(data,
+         video_context_driver_init(
+               p_rarch,
                settings,
+               data,
                gfx_ctx_gl_drivers[i], ident,
                api, major, minor, hw_render_ctx, ctx_data);
 
@@ -31941,12 +31977,16 @@ const gfx_ctx_driver_t *video_context_driver_init_first(void *data,
       const char *ident, enum gfx_ctx_api api, unsigned major,
       unsigned minor, bool hw_render_ctx, void **ctx_data)
 {
+   struct rarch_state *p_rarch = &rarch_st;
+   settings_t *settings        = p_rarch->configuration_settings;
+
    switch (api)
    {
       case GFX_CTX_VULKAN_API:
 #ifdef HAVE_VULKAN
          {
             const gfx_ctx_driver_t *ptr = vk_context_driver_init_first(
+                  p_rarch, settings,
                   data, ident, api, major, minor, hw_render_ctx, ctx_data);
             if (ptr && !string_is_equal(ptr->ident, "null"))
                return ptr;
@@ -31957,7 +31997,9 @@ const gfx_ctx_driver_t *video_context_driver_init_first(void *data,
       case GFX_CTX_OPENGL_ES_API:
       case GFX_CTX_OPENVG_API:
       case GFX_CTX_METAL_API:
-         return gl_context_driver_init_first(data, ident, api, major, minor, 
+         return gl_context_driver_init_first(
+               p_rarch, settings,
+               data, ident, api, major, minor, 
                hw_render_ctx, ctx_data);
       case GFX_CTX_NONE:
       default:
@@ -32046,9 +32088,10 @@ bool video_context_driver_get_flags(gfx_ctx_flags_t *flags)
    return true;
 }
 
-static bool video_driver_get_flags(gfx_ctx_flags_t *flags)
+static bool video_driver_get_flags(
+      struct rarch_state *p_rarch,
+      gfx_ctx_flags_t *flags)
 {
-   struct rarch_state *p_rarch = &rarch_st;
    if (!p_rarch->video_driver_poke || !p_rarch->video_driver_poke->get_flags)
       return false;
    flags->flags = p_rarch->video_driver_poke->get_flags(p_rarch->video_driver_data);
@@ -32058,9 +32101,10 @@ static bool video_driver_get_flags(gfx_ctx_flags_t *flags)
 gfx_ctx_flags_t video_driver_get_flags_wrapper(void)
 {
    gfx_ctx_flags_t flags;
+   struct rarch_state *p_rarch = &rarch_st;
    flags.flags                 = 0;
 
-   if (!video_driver_get_flags(&flags))
+   if (!video_driver_get_flags(p_rarch, &flags))
       video_context_driver_get_flags(&flags);
 
    return flags;
@@ -32076,8 +32120,9 @@ gfx_ctx_flags_t video_driver_get_flags_wrapper(void)
 bool video_driver_test_all_flags(enum display_flags testflag)
 {
    gfx_ctx_flags_t flags;
+   struct rarch_state *p_rarch = &rarch_st;
 
-   if (video_driver_get_flags(&flags))
+   if (video_driver_get_flags(p_rarch, &flags))
       if (BIT32_GET(flags.flags, testflag))
          return true;
 
@@ -32269,7 +32314,7 @@ struct string_list* video_driver_get_gpu_api_devices(enum gfx_ctx_api api)
  * Returns: string listing of all location driver names,
  * separated by '|'.
  **/
-const char* config_get_location_driver_options(void)
+const char *config_get_location_driver_options(void)
 {
    return char_list_new_special(STRING_LIST_LOCATION_DRIVERS, NULL);
 }
@@ -32287,7 +32332,6 @@ static void location_driver_find_driver(struct rarch_state *p_rarch,
       p_rarch->location_driver  = (const location_driver_t*)location_drivers[i];
    else
    {
-
       if (verbosity_enabled)
       {
          unsigned d;
@@ -32402,11 +32446,10 @@ static bool driver_location_get_position(double *lat, double *lon,
 
 static void init_location(
       struct rarch_state *p_rarch,
+      rarch_system_info_t *system,
       settings_t *settings,
       bool verbosity_enabled)
 {
-   rarch_system_info_t *system  = &p_rarch->runloop_system;
-
    /* Resource leaks will follow if location interface is initialized twice. */
    if (p_rarch->location_data)
       return;
@@ -32426,11 +32469,11 @@ static void init_location(
       system->location_cb.initialized();
 }
 
-static void uninit_location(void)
+static void uninit_location(
+      struct rarch_state *p_rarch,
+      rarch_system_info_t  *system
+      )
 {
-   struct rarch_state  *p_rarch = &rarch_st;
-   rarch_system_info_t  *system = &p_rarch->runloop_system;
-
    if (p_rarch->location_data && p_rarch->location_driver)
    {
       if (system->location_cb.deinitialized)
@@ -32548,7 +32591,9 @@ static void driver_adjust_system_rates(struct rarch_state *p_rarch,
    
    p_rarch->runloop_force_nonblock = false;
 
-   video_driver_monitor_adjust_system_rates(p_rarch);
+   video_driver_monitor_adjust_system_rates(p_rarch, settings,
+         (const struct retro_system_timing*)
+         &p_rarch->video_driver_av_info.timing);
 
    if (!VIDEO_DRIVER_GET_PTR_INTERNAL(p_rarch))
       return;
@@ -32677,6 +32722,7 @@ static void drivers_init(struct rarch_state *p_rarch,
    if (flags & DRIVER_AUDIO_MASK)
    {
       audio_driver_init_internal(p_rarch,
+            settings,
             p_rarch->audio_callback.callback != NULL);
       if (  p_rarch->current_audio &&
             p_rarch->current_audio->device_list_new &&
@@ -32731,7 +32777,7 @@ static void drivers_init(struct rarch_state *p_rarch,
    {
       /* Only initialize location driver if we're ever going to use it. */
       if (p_rarch->location_driver_active)
-         init_location(p_rarch, settings, verbosity_is_enabled());
+         init_location(p_rarch, &p_rarch->runloop_system, settings, verbosity_is_enabled());
    }
 
    core_info_init_current_core();
@@ -32857,7 +32903,7 @@ static void driver_uninit(struct rarch_state *p_rarch, int flags)
 #endif
 
    if ((flags & DRIVER_LOCATION_MASK))
-      uninit_location();
+      uninit_location(p_rarch, &p_rarch->runloop_system);
 
    if ((flags & DRIVER_CAMERA_MASK))
    {
@@ -33170,12 +33216,13 @@ static void input_list_element_destructor(void* element_ptr)
    free(element_ptr);
 }
 
-static void input_state_set_last(unsigned port, unsigned device,
+static void input_state_set_last(
+      struct rarch_state *p_rarch,
+      unsigned port, unsigned device,
       unsigned index, unsigned id, int16_t value)
 {
    unsigned i;
    input_list_element *element = NULL;
-   struct rarch_state *p_rarch = &rarch_st;
 
    if (!p_rarch->input_state_list)
       mylist_create(&p_rarch->input_state_list, 16,
@@ -33255,7 +33302,7 @@ static int16_t input_state_with_logging(unsigned port,
          p_rarch->input_is_dirty  = true;
       /*arbitrary limit of up to 65536 elements in state array*/
       if (id < 65536)
-         input_state_set_last(port, device, index, id, result);
+         input_state_set_last(p_rarch, port, device, index, id, result);
 
       return result;
    }
@@ -34770,12 +34817,13 @@ static bool retroarch_validate_game_options(
          core_name, game_name);
 }
 
-static bool retroarch_validate_folder_options(char *s, size_t len, bool mkdir)
+static bool retroarch_validate_folder_options(
+      struct rarch_state *p_rarch,
+      char *s, size_t len, bool mkdir)
 {
-   struct rarch_state *p_rarch = &rarch_st;
+   char folder_name[PATH_MAX_LENGTH];
    const char *core_name       = p_rarch->runloop_system.info.library_name;
    const char *game_path       = path_get(RARCH_PATH_BASENAME);
-   char folder_name[PATH_MAX_LENGTH];
 
    folder_name[0] = '\0';
 
@@ -35034,8 +35082,10 @@ bool retroarch_main_init(int argc, char *argv[])
     * Attempts to find a default driver for
     * all driver types.
     */
-   audio_driver_find_driver(p_rarch,  "audio driver", verbosity_enabled);
-   video_driver_find_driver(p_rarch,  "video driver", verbosity_enabled);
+   audio_driver_find_driver(p_rarch, settings,
+         "audio driver", verbosity_enabled);
+   video_driver_find_driver(p_rarch, settings,
+         "video driver", verbosity_enabled);
    input_driver_find_driver(p_rarch, settings,
          "input driver", verbosity_enabled);
    camera_driver_find_driver(p_rarch, settings,
@@ -35447,12 +35497,15 @@ static bool rarch_game_specific_options(struct rarch_state *p_rarch,
  * options path has been found,
  * otherwise false (0).
  **/
-static bool rarch_folder_specific_options(char **output)
+static bool rarch_folder_specific_options(
+      struct rarch_state *p_rarch,
+      char **output)
 {
    char folder_options_path[PATH_MAX_LENGTH];
    folder_options_path[0] ='\0';
 
-   if (!retroarch_validate_folder_options(folder_options_path,
+   if (!retroarch_validate_folder_options(p_rarch,
+            folder_options_path,
             sizeof(folder_options_path), false) ||
        !path_is_valid(folder_options_path))
       return false;
@@ -35550,7 +35603,8 @@ static void rarch_init_core_options_path(
    }
    /* Check whether folder-specific options exist */
    else if (game_specific_options &&
-            rarch_folder_specific_options(&folder_options_path))
+            rarch_folder_specific_options(p_rarch,
+               &folder_options_path))
    {
       /* Notify system that we have a valid core options
        * override */
@@ -37841,7 +37895,7 @@ static enum runloop_state runloop_check_state(
             {
                const char *preset = retroarch_get_shader_preset();
                enum rarch_shader_type type = video_shader_parse_type(preset);
-               retroarch_apply_shader(type, preset, false);
+               retroarch_apply_shader(p_rarch, settings, type, preset, false);
             }
          }
       }
@@ -38877,8 +38931,9 @@ bool core_options_create_override(bool game_specific)
          goto error;
    }
    else
-      if (!retroarch_validate_folder_options(options_path,
-            sizeof(options_path), true))
+      if (!retroarch_validate_folder_options(p_rarch,
+               options_path,
+               sizeof(options_path), true))
          goto error;
 
    /* Open config file */
@@ -38958,8 +39013,9 @@ bool core_options_remove_override(bool game_specific)
     *   check whether a folder-specific config
     *   exists */
    if (game_specific &&
-       retroarch_validate_folder_options(new_options_path,
-         sizeof(new_options_path), false) &&
+       retroarch_validate_folder_options(p_rarch,
+          new_options_path,
+          sizeof(new_options_path), false) &&
        path_is_valid(new_options_path))
       folder_options_active = true;
 
