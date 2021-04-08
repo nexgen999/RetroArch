@@ -5692,7 +5692,7 @@ clear:
 
 static bool menu_shader_manager_save_preset_internal(
       struct rarch_state *p_rarch,
-      settings_t *settings,
+      bool save_reference,
       const struct video_shader *shader, 
       const char *basename,
       const char *dir_video_shader,
@@ -5706,8 +5706,6 @@ static bool menu_shader_manager_save_preset_internal(
    enum rarch_shader_type type    = RARCH_SHADER_NONE;
    char *preset_path              = NULL;
    size_t i                       = 0;
-   bool save_reference            = 
-      settings->bools.video_shader_preset_save_reference_enable;
 
    fullname[0] = buffer[0]        = '\0';
 
@@ -5894,7 +5892,8 @@ static bool menu_shader_manager_operate_auto_preset(
    {
       case AUTO_SHADER_OP_SAVE:
          return menu_shader_manager_save_preset_internal(
-               p_rarch, settings,
+               p_rarch,
+               settings->bools.video_shader_preset_save_reference_enable,
                shader, file,
                dir_video_shader,
                apply,
@@ -6051,7 +6050,8 @@ bool menu_shader_manager_save_preset(const struct video_shader *shader,
    preset_dirs[2] = config_directory;
 
    return menu_shader_manager_save_preset_internal(
-         p_rarch, settings,
+         p_rarch,
+         settings->bools.video_shader_preset_save_reference_enable,
          shader, basename,
          dir_video_shader,
          apply,
@@ -6875,7 +6875,8 @@ static bool get_self_input_state(
                for (key = 1; key < NETPLAY_KEY_LAST; key++)
                {
                   state[word] |=
-                        cb(local_device, RETRO_DEVICE_KEYBOARD, 0, netplay_key_ntoh(key)) ?
+                        cb(local_device, RETRO_DEVICE_KEYBOARD, 0,
+                              NETPLAY_KEY_NTOH(key)) ?
                               (UINT32_C(1) << bit) : 0;
                   bit++;
                   if (bit >= 32)
@@ -7664,14 +7665,15 @@ static void netplay_disconnect(
  **/
 static bool netplay_pre_frame(
       struct rarch_state *p_rarch,
-      settings_t *settings,
+      bool netplay_public_announce,
+      bool netplay_use_mitm_server,
       netplay_t *netplay)
 {
    bool sync_stalled     = false;
 
    retro_assert(netplay);
 
-   if (settings->bools.netplay_public_announce)
+   if (netplay_public_announce)
    {
       p_rarch->reannounce++;
       if (
@@ -7692,7 +7694,7 @@ static bool netplay_pre_frame(
    if (netplay->quirks & NETPLAY_QUIRK_INITIALIZATION)
       netplay_try_init_serialization(netplay);
 
-   if (netplay->is_server && !settings->bools.netplay_use_mitm_server)
+   if (netplay->is_server && !netplay_use_mitm_server)
    {
       /* Advertise our server */
       netplay_lan_ad_server(netplay);
@@ -7886,28 +7888,26 @@ void netplay_load_savestate(netplay_t *netplay,
    /* Record it in our own buffer */
    if (save || !serial_info)
    {
-      if (netplay_delta_frame_ready(netplay,
+      /* TODO/FIXME: This is a critical failure! */
+      if (!netplay_delta_frame_ready(netplay,
                &netplay->buffer[netplay->run_ptr], netplay->run_frame_count))
-      {
-         if (!serial_info)
-         {
-            tmp_serial_info.size = netplay->state_size;
-            tmp_serial_info.data = netplay->buffer[netplay->run_ptr].state;
-            if (!core_serialize(&tmp_serial_info))
-               return;
-            tmp_serial_info.data_const = tmp_serial_info.data;
-            serial_info = &tmp_serial_info;
-         }
-         else
-         {
-            if (serial_info->size <= netplay->state_size)
-               memcpy(netplay->buffer[netplay->run_ptr].state,
-                     serial_info->data_const, serial_info->size);
-         }
-      }
-      /* FIXME: This is a critical failure! */
-      else
          return;
+
+      if (!serial_info)
+      {
+         tmp_serial_info.size = netplay->state_size;
+         tmp_serial_info.data = netplay->buffer[netplay->run_ptr].state;
+         if (!core_serialize(&tmp_serial_info))
+            return;
+         tmp_serial_info.data_const = tmp_serial_info.data;
+         serial_info = &tmp_serial_info;
+      }
+      else
+      {
+         if (serial_info->size <= netplay->state_size)
+            memcpy(netplay->buffer[netplay->run_ptr].state,
+                  serial_info->data_const, serial_info->size);
+      }
    }
 
    /* Don't send it if we're expected to be desynced */
@@ -7957,50 +7957,6 @@ static void netplay_core_reset(netplay_t *netplay)
                sizeof(cmd)))
          netplay_hangup(netplay, connection);
    }
-}
-
-/**
- * netplay_settings_share_mode
- *
- * Get the preferred share mode
- */
-uint8_t netplay_settings_share_mode(
-      unsigned share_digital, unsigned share_analog)
-{
-   if (share_digital || share_analog)
-   {
-      uint8_t share_mode     = 0;
-
-      switch (share_digital)
-      {
-         case RARCH_NETPLAY_SHARE_DIGITAL_OR:
-            share_mode |= NETPLAY_SHARE_DIGITAL_OR;
-            break;
-         case RARCH_NETPLAY_SHARE_DIGITAL_XOR:
-            share_mode |= NETPLAY_SHARE_DIGITAL_XOR;
-            break;
-         case RARCH_NETPLAY_SHARE_DIGITAL_VOTE:
-            share_mode |= NETPLAY_SHARE_DIGITAL_VOTE;
-            break;
-         default:
-            share_mode |= NETPLAY_SHARE_NO_PREFERENCE;
-      }
-
-      switch (share_analog)
-      {
-         case RARCH_NETPLAY_SHARE_ANALOG_MAX:
-            share_mode |= NETPLAY_SHARE_ANALOG_MAX;
-            break;
-         case RARCH_NETPLAY_SHARE_ANALOG_AVERAGE:
-            share_mode |= NETPLAY_SHARE_ANALOG_AVERAGE;
-            break;
-         default:
-            share_mode |= NETPLAY_SHARE_NO_PREFERENCE;
-      }
-
-      return share_mode;
-   }
-   return 0;
 }
 
 /**
@@ -8236,7 +8192,9 @@ bool netplay_driver_ctl(enum rarch_netplay_ctl_state state, void *data)
          netplay_post_frame(p_rarch, netplay);
          break;
       case RARCH_NETPLAY_CTL_PRE_FRAME:
-         ret = netplay_pre_frame(p_rarch, p_rarch->configuration_settings,
+         ret = netplay_pre_frame(p_rarch,
+               p_rarch->configuration_settings->bools.netplay_public_announce,
+               p_rarch->configuration_settings->bools.netplay_use_mitm_server,
                netplay);
          goto done;
       case RARCH_NETPLAY_CTL_GAME_WATCH:
@@ -9512,12 +9470,9 @@ static void path_deinit_subsystem(struct rarch_state *p_rarch)
 }
 
 static void dir_free_shader(struct rarch_state *p_rarch,
-      settings_t *settings)
+      struct rarch_dir_shader_list *dir_list,
+      bool shader_remember_last_dir)
 {
-   struct rarch_dir_shader_list *dir_list =
-      (struct rarch_dir_shader_list*)&p_rarch->dir_shader_list;
-   bool shader_remember_last_dir          = settings->bools.video_shader_remember_last_dir;
-
    if (dir_list->shader_list)
    {
       dir_list_free(dir_list->shader_list);
@@ -9538,20 +9493,18 @@ static void dir_free_shader(struct rarch_state *p_rarch,
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
 static bool dir_init_shader_internal(
       struct rarch_state *p_rarch,
+      settings_t *settings,
+      struct rarch_dir_shader_list *dir_list,
       const char *shader_dir,
       const char *shader_file_name,
       bool show_hidden_files)
 {
-   struct rarch_dir_shader_list *dir_list = (struct rarch_dir_shader_list*)
-         &p_rarch->dir_shader_list;
+   size_t i;
    struct string_list *new_list           = dir_list_new_special(
          shader_dir, DIR_LIST_SHADERS, NULL, show_hidden_files);
-   settings_t *settings                   = p_rarch->configuration_settings;
    bool shader_remember_last_dir          = settings->bools.video_shader_remember_last_dir;
    bool search_file_name                  = shader_remember_last_dir &&
          !string_is_empty(shader_file_name);
-   bool file_name_found                   = false;
-   size_t i;
 
    if (!new_list)
       return false;
@@ -9570,29 +9523,30 @@ static bool dir_init_shader_internal(
    dir_list->shader_loaded            = false;
    dir_list->remember_last_preset_dir = shader_remember_last_dir;
 
-   for (i = 0; i < new_list->size; i++)
+   if (search_file_name)
    {
-      const char *file_path = new_list->elems[i].data;
-
-      if (string_is_empty(file_path))
-         continue;
-
-      RARCH_LOG("[Shaders]: %s \"%s\"\n",
-            msg_hash_to_str(MSG_FOUND_SHADER),
-            file_path);
-
-      /* If a shader file name has been provided,
-       * search the list for a match and set 'selection'
-       * index if found */
-      if (search_file_name && !file_name_found)
+      for (i = 0; i < new_list->size; i++)
       {
-         const char *file_name = path_basename(file_path);
+         const char *file_name = NULL;
+         const char *file_path = new_list->elems[i].data;
+
+         if (string_is_empty(file_path))
+            continue;
+
+         /* If a shader file name has been provided,
+          * search the list for a match and set 'selection'
+          * index if found */
+         file_name = path_basename(file_path);
 
          if (!string_is_empty(file_name) &&
-             string_is_equal(file_name, shader_file_name))
+               string_is_equal(file_name, shader_file_name))
          {
+            RARCH_LOG("[Shaders]: %s \"%s\"\n",
+                  msg_hash_to_str(MSG_FOUND_SHADER),
+                  file_path);
+
             dir_list->selection = i;
-            file_name_found     = true;
+            break;
          }
       }
    }
@@ -9600,9 +9554,11 @@ static bool dir_init_shader_internal(
    return true;
 }
 
-static void dir_init_shader(struct rarch_state *p_rarch)
+static void dir_init_shader(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
+      struct rarch_dir_shader_list *dir_list)
 {
-   settings_t *settings                           = p_rarch->configuration_settings;
    bool show_hidden_files                         = settings->bools.show_hidden_files;
    bool shader_remember_last_dir                  = settings->bools.video_shader_remember_last_dir;
    const char *directory_video_shader             = settings->paths.directory_video_shader;
@@ -9610,7 +9566,8 @@ static void dir_init_shader(struct rarch_state *p_rarch)
    const char *last_shader_preset_dir             = NULL;
    const char *last_shader_preset_file_name       = NULL;
 #if defined(HAVE_MENU)
-   enum rarch_shader_type last_shader_preset_type = menu_driver_get_last_shader_preset_type();
+   menu_handle_t *menu                            = p_rarch->menu_driver_data;
+   enum rarch_shader_type last_shader_preset_type = menu ? menu->last_shader_selection.preset_type : RARCH_SHADER_NONE;
    menu_driver_get_last_shader_preset_path(
          &last_shader_preset_dir, &last_shader_preset_file_name);
 #else
@@ -9618,28 +9575,38 @@ static void dir_init_shader(struct rarch_state *p_rarch)
 #endif
 
    /* Always free existing shader list */
-   dir_free_shader(p_rarch, settings);
+   dir_free_shader(p_rarch, dir_list,
+         settings->bools.video_shader_remember_last_dir);
 
    /* Try directory of last selected shader preset */
    if (shader_remember_last_dir &&
        (last_shader_preset_type != RARCH_SHADER_NONE) &&
        !string_is_empty(last_shader_preset_dir) &&
-       dir_init_shader_internal(p_rarch,
-            last_shader_preset_dir,
-            last_shader_preset_file_name,
-            show_hidden_files))
+       dir_init_shader_internal(
+          p_rarch,
+          settings,
+          dir_list,
+          last_shader_preset_dir,
+          last_shader_preset_file_name,
+          show_hidden_files))
       return;
 
    /* Try video shaders directory */
    if (!string_is_empty(directory_video_shader) &&
        dir_init_shader_internal(
-            p_rarch, directory_video_shader, NULL, show_hidden_files))
+            p_rarch,
+            settings,
+            dir_list,
+            directory_video_shader, NULL, show_hidden_files))
       return;
 
    /* Try config directory */
    if (!string_is_empty(directory_menu_config) &&
        dir_init_shader_internal(
-            p_rarch, directory_menu_config, NULL, show_hidden_files))
+            p_rarch,
+            settings,
+            dir_list,
+            directory_menu_config, NULL, show_hidden_files))
       return;
 
    /* Try 'top level' directory containing main
@@ -9651,7 +9618,10 @@ static void dir_init_shader(struct rarch_state *p_rarch)
 
       if (!string_is_empty(rarch_config_directory))
          dir_init_shader_internal(
-               p_rarch, rarch_config_directory, NULL, show_hidden_files);
+               p_rarch,
+               settings,
+               dir_list,
+               rarch_config_directory, NULL, show_hidden_files);
 
       free(rarch_config_directory);
    }
@@ -9668,19 +9638,21 @@ static void dir_init_shader(struct rarch_state *p_rarch)
  *
  * Will also immediately apply the shader.
  **/
-static void dir_check_shader(struct rarch_state *p_rarch,
-      bool pressed_next, bool pressed_prev)
+static void dir_check_shader(
+      struct rarch_state *p_rarch,
+      settings_t *settings,
+      struct rarch_dir_shader_list *dir_list,
+      bool pressed_next,
+      bool pressed_prev)
 {
-   struct rarch_dir_shader_list *dir_list         = (struct rarch_dir_shader_list*)
-         &p_rarch->dir_shader_list;
-   settings_t *settings                           = p_rarch->configuration_settings;
    bool shader_remember_last_dir                  = settings->bools.video_shader_remember_last_dir;
    const char *last_shader_preset_dir             = NULL;
    const char *last_shader_preset_file_name       = NULL;
    const char *set_shader_path                    = NULL;
    bool dir_list_initialised                      = false;
 #if defined(HAVE_MENU)
-   enum rarch_shader_type last_shader_preset_type = menu_driver_get_last_shader_preset_type();
+   menu_handle_t *menu                            = p_rarch->menu_driver_data;
+   enum rarch_shader_type last_shader_preset_type = menu ? menu->last_shader_selection.preset_type : RARCH_SHADER_NONE;
    menu_driver_get_last_shader_preset_path(
          &last_shader_preset_dir, &last_shader_preset_file_name);
 #else
@@ -9695,7 +9667,7 @@ static void dir_check_shader(struct rarch_state *p_rarch,
         (last_shader_preset_type != RARCH_SHADER_NONE) &&
         !string_is_equal(dir_list->directory, last_shader_preset_dir)))
    {
-      dir_init_shader(p_rarch);
+      dir_init_shader(p_rarch, settings, dir_list);
       dir_list_initialised = true;
    }
 
@@ -10823,12 +10795,12 @@ task_finished:
        free(task->user_data);
 }
 
-static bool call_auto_translate_task(
+static void call_auto_translate_task(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       bool *was_paused)
 {
-   settings_t        *settings = p_rarch->configuration_settings;
-   int        ai_service_mode  = settings->uints.ai_service_mode;
+   int ai_service_mode  = settings->uints.ai_service_mode;
 
    /*Image Mode*/
    if (ai_service_mode == 0)
@@ -10837,14 +10809,13 @@ static bool call_auto_translate_task(
          p_rarch->ai_service_auto = 2;
 
       command_event(CMD_EVENT_AI_SERVICE_CALL, was_paused);
-      return true;
    }
    else /* Speech or Narrator Mode */
    {
       int* mode                          = NULL;
       retro_task_t  *t                   = task_init();
       if (!t)
-         return false;
+         return;
 
       mode                               = (int*)malloc(sizeof(int));
       *mode                              = ai_service_mode;
@@ -10854,7 +10825,6 @@ static bool call_auto_translate_task(
       t->mute                            = true;
       task_queue_push(t);
    }
-   return true;
 }
 
 static void handle_translation_cb(
@@ -11337,7 +11307,7 @@ finish:
    {
       if (     (p_rarch->ai_service_auto != 0)
             && !settings->bools.ai_service_pause)
-         call_auto_translate_task(p_rarch, &was_paused);
+         call_auto_translate_task(p_rarch, settings, &was_paused);
    }
    if (auto_string)
       free(auto_string);
@@ -12429,7 +12399,8 @@ static void update_runtime_log(
 }
 
 
-static void command_event_runtime_log_deinit(struct rarch_state *p_rarch)
+static void command_event_runtime_log_deinit(struct rarch_state *p_rarch,
+      settings_t *settings)
 {
    char log[PATH_MAX_LENGTH]    = {0};
    unsigned hours               = 0;
@@ -12452,7 +12423,6 @@ static void command_event_runtime_log_deinit(struct rarch_state *p_rarch)
    /* Only write to file if content has run for a non-zero length of time */
    if (p_rarch->libretro_core_runtime_usec > 0)
    {
-      settings_t *settings               = p_rarch->configuration_settings;
       bool content_runtime_log           = settings->bools.content_runtime_log;
       bool content_runtime_log_aggregate = settings->bools.content_runtime_log_aggregate;
       const char  *dir_runtime_log       = settings->paths.directory_runtime_log;
@@ -13260,12 +13230,12 @@ bool command_event(enum event_command cmd, void *data)
          break;
       case CMD_EVENT_SHADER_NEXT:
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-         dir_check_shader(p_rarch, true, false);
+         dir_check_shader(p_rarch, settings, &p_rarch->dir_shader_list, true, false);
 #endif
          break;
       case CMD_EVENT_SHADER_PREV:
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-         dir_check_shader(p_rarch, false, true);
+         dir_check_shader(p_rarch, settings, &p_rarch->dir_shader_list, false, true);
 #endif
          break;
       case CMD_EVENT_BSV_RECORDING_TOGGLE:
@@ -13562,7 +13532,7 @@ bool command_event(enum event_command cmd, void *data)
             if (sys_info)
                disk_control_save_image_index(&sys_info->disk_control);
 
-            command_event_runtime_log_deinit(p_rarch);
+            command_event_runtime_log_deinit(p_rarch, settings);
             command_event_save_auto_state(settings, 
                   global, p_rarch);
 
@@ -13944,7 +13914,7 @@ bool command_event(enum event_command cmd, void *data)
             if (sys_info)
                disk_control_save_image_index(&sys_info->disk_control);
 
-            command_event_runtime_log_deinit(p_rarch);
+            command_event_runtime_log_deinit(p_rarch, settings);
             content_reset_savestate_backups();
             hwr = VIDEO_DRIVER_GET_HW_CONTEXT_INTERNAL(p_rarch);
 #ifdef HAVE_CHEEVOS
@@ -17069,7 +17039,7 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
           * since normal command.c CMD_EVENT_CORE_DEINIT event
           * will not occur until after the current content has
           * been cleared (causing log to be skipped) */
-         command_event_runtime_log_deinit(p_rarch);
+         command_event_runtime_log_deinit(p_rarch, settings);
 
          p_rarch->runloop_shutdown_initiated      = true;
          p_rarch->runloop_core_shutdown_initiated = true;
@@ -18707,10 +18677,11 @@ static void secondary_core_destroy(struct rarch_state *p_rarch)
    p_rarch->secondary_library_path = NULL;
 }
 
-static bool secondary_core_ensure_exists(struct rarch_state *p_rarch)
+static bool secondary_core_ensure_exists(struct rarch_state *p_rarch,
+      settings_t *settings)
 {
    if (!p_rarch->secondary_lib_handle)
-      if (!secondary_core_create(p_rarch))
+      if (!secondary_core_create(p_rarch, settings))
          return false;
    return true;
 }
@@ -18718,9 +18689,10 @@ static bool secondary_core_ensure_exists(struct rarch_state *p_rarch)
 #if defined(HAVE_RUNAHEAD) && defined(HAVE_DYNAMIC)
 static bool secondary_core_deserialize(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       const void *buffer, int size)
 {
-   if (secondary_core_ensure_exists(p_rarch))
+   if (secondary_core_ensure_exists(p_rarch, settings))
       return p_rarch->secondary_core.retro_unserialize(buffer, size);
    secondary_core_destroy(p_rarch);
    return false;
@@ -18841,7 +18813,8 @@ static bool write_file_with_random_name(char **temp_dll_path,
    return okay;
 }
 
-static char *copy_core_to_temp_file(struct rarch_state *p_rarch)
+static char *copy_core_to_temp_file(struct rarch_state *p_rarch,
+      const char *dir_libretro)
 {
    bool  failed                = false;
    char  *temp_directory       = NULL;
@@ -18851,13 +18824,11 @@ static char *copy_core_to_temp_file(struct rarch_state *p_rarch)
    int64_t  dll_file_size      = 0;
    const char  *core_path      = path_get(RARCH_PATH_CORE);
    const char  *core_base_name = path_basename(core_path);
-   settings_t *settings        = p_rarch->configuration_settings;
-   const char  *dir_libretro   = settings->paths.directory_libretro;
 
    if (strlen(core_base_name) == 0)
       return NULL;
 
-   temp_directory             = get_temp_directory_alloc(dir_libretro);
+   temp_directory              = get_temp_directory_alloc(dir_libretro);
    if (!temp_directory)
       return NULL;
 
@@ -18933,7 +18904,8 @@ static bool rarch_environment_secondary_core_hook(
    return result;
 }
 
-static bool secondary_core_create(struct rarch_state *p_rarch)
+static bool secondary_core_create(struct rarch_state *p_rarch,
+      settings_t *settings)
 {
    unsigned port;
    bool contentless            = false;
@@ -18951,7 +18923,8 @@ static bool secondary_core_create(struct rarch_state *p_rarch)
    if (p_rarch->secondary_library_path)
       free(p_rarch->secondary_library_path);
    p_rarch->secondary_library_path = NULL;
-   p_rarch->secondary_library_path = copy_core_to_temp_file(p_rarch);
+   p_rarch->secondary_library_path = copy_core_to_temp_file(p_rarch,
+         settings->paths.directory_libretro);
 
    if (!p_rarch->secondary_library_path)
       return false;
@@ -19037,7 +19010,7 @@ static bool secondary_core_run_use_last_input(struct rarch_state *p_rarch)
    retro_input_poll_t old_poll_function;
    retro_input_state_t old_input_function;
 
-   if (!secondary_core_ensure_exists(p_rarch))
+   if (!secondary_core_ensure_exists(p_rarch, p_rarch->configuration_settings))
    {
       secondary_core_destroy(p_rarch);
       return false;
@@ -25579,8 +25552,9 @@ void input_keyboard_event(bool down, unsigned code,
          {
             char c    = (char) character;
             *say_char = c;
+            say_char[1] = '\0';
 
-            if (character == 127)
+            if (character == 127 || character == 8)
                accessibility_speak_priority(p_rarch, settings,
                      "backspace", 10);
             else
@@ -29714,7 +29688,9 @@ static void video_driver_free_internal(struct rarch_state *p_rarch)
 #ifdef HAVE_VIDEO_FILTER
    video_driver_filter_free();
 #endif
-   dir_free_shader(p_rarch, p_rarch->configuration_settings);
+   dir_free_shader(p_rarch,
+         (struct rarch_dir_shader_list*)&p_rarch->dir_shader_list,
+         p_rarch->configuration_settings->bools.video_shader_remember_last_dir);
 
 #ifdef HAVE_THREADS
    if (is_threaded)
@@ -30445,13 +30421,12 @@ void video_driver_cached_frame(void)
 
 static void video_driver_monitor_adjust_system_rates(
       struct rarch_state *p_rarch,
-      settings_t *settings,
+      float video_refresh_rate,
+      bool vrr_runloop_enable,
+      float audio_max_timing_skew,
       const struct retro_system_timing *info
       )
 {
-   float video_refresh_rate               = settings->floats.video_refresh_rate;
-   bool vrr_runloop_enable                = settings->bools.vrr_runloop_enable;
-   float audio_max_timing_skew            = settings->floats.audio_max_timing_skew;
    float timing_skew_hz                   = video_refresh_rate;
 
    if (!info || info->fps <= 0.0)
@@ -31110,7 +31085,6 @@ static void video_driver_frame(const void *data, unsigned width,
       video_driver_pix_fmt      = p_rarch->video_driver_pix_fmt;
    bool runloop_idle            = p_rarch->runloop_idle;
    bool video_driver_active     = p_rarch->video_driver_active;
-   settings_t *settings         = p_rarch->configuration_settings;
 #if defined(HAVE_GFX_WIDGETS)
    bool widgets_active          = p_rarch->widgets_active;
 #endif
@@ -31150,9 +31124,9 @@ static void video_driver_frame(const void *data, unsigned width,
    if (p_rarch->video_driver_frame_count)
    {
       unsigned fps_update_interval                 =
-         settings->uints.fps_update_interval;
+         video_info.fps_update_interval;
       unsigned memory_update_interval              =
-         settings->uints.memory_update_interval;
+         video_info.memory_update_interval;
       size_t buf_pos                               = 1;
       /* set this to 1 to avoid an offset issue */
       unsigned write_index                         =
@@ -31672,6 +31646,9 @@ void video_driver_build_info(video_frame_info_t *video_info)
    video_info->libretro_running            = false;
    video_info->msg_bgcolor_enable          =
       settings->bools.video_msg_bgcolor_enable;
+
+   video_info->fps_update_interval         = settings->uints.fps_update_interval;
+   video_info->memory_update_interval      = settings->uints.memory_update_interval;
 
 #ifdef HAVE_MENU
    video_info->menu_is_alive               = p_rarch->menu_driver_alive;
@@ -32598,7 +32575,10 @@ static void driver_adjust_system_rates(struct rarch_state *p_rarch,
    
    p_rarch->runloop_force_nonblock = false;
 
-   video_driver_monitor_adjust_system_rates(p_rarch, settings,
+   video_driver_monitor_adjust_system_rates(p_rarch,
+         settings->floats.video_refresh_rate,
+         settings->bools.vrr_runloop_enable,
+         settings->floats.audio_max_timing_skew,
          (const struct retro_system_timing*)
          &p_rarch->video_driver_av_info.timing);
 
@@ -33588,7 +33568,7 @@ static bool runahead_load_state_secondary(struct rarch_state *p_rarch)
 
    p_rarch->request_fast_savestate            = true;
    okay                                       = secondary_core_deserialize(
-         p_rarch,
+         p_rarch, p_rarch->configuration_settings,
          serialize_info->data_const, (int)serialize_info->size);
    p_rarch->request_fast_savestate            = false;
 
@@ -33713,7 +33693,7 @@ static void do_runahead(
    else
    {
 #if HAVE_DYNAMIC
-      if (!secondary_core_ensure_exists(p_rarch))
+      if (!secondary_core_ensure_exists(p_rarch, p_rarch->configuration_settings))
       {
          secondary_core_destroy(p_rarch);
          p_rarch->runahead_secondary_core_available = false;
@@ -33772,6 +33752,7 @@ force_input_dirty:
 
 static retro_time_t rarch_core_runtime_tick(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       retro_time_t current_time)
 {
    retro_time_t frame_time              =
@@ -33782,7 +33763,6 @@ static retro_time_t rarch_core_runtime_tick(
    /* Account for slow motion */
    if (runloop_slowmotion)
    {
-      settings_t *settings              = p_rarch->configuration_settings;
       float slowmotion_ratio            = settings->floats.slowmotion_ratio;
       return (retro_time_t)((double)frame_time * slowmotion_ratio);
    }
@@ -36719,6 +36699,7 @@ static bool input_driver_toggle_button_combo(
 /* Display the libretro core's framebuffer onscreen. */
 static bool menu_display_libretro(
       struct rarch_state *p_rarch,
+      settings_t *settings,
       bool libretro_running,
       retro_time_t current_time)
 {
@@ -36737,7 +36718,7 @@ static bool menu_display_libretro(
 
       core_run();
       p_rarch->libretro_core_runtime_usec        +=
-         rarch_core_runtime_tick(p_rarch, current_time);
+         rarch_core_runtime_tick(p_rarch, settings, current_time);
       p_rarch->input_driver_block_libretro_input  = false;
 
       return false;
@@ -36757,22 +36738,6 @@ static bool menu_display_libretro(
    return true;
 }
 #endif
-
-static void update_savestate_slot(int state_slot)
-{
-   char msg[128];
-
-   msg[0] = '\0';
-
-   snprintf(msg, sizeof(msg), "%s: %d",
-         msg_hash_to_str(MSG_STATE_SLOT),
-         state_slot);
-
-   runloop_msg_queue_push(msg, 2, 180, true, NULL,
-         MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
-
-   RARCH_LOG("%s\n", msg);
-}
 
 static enum runloop_state runloop_check_state(
       struct rarch_state *p_rarch,
@@ -37410,7 +37375,7 @@ static enum runloop_state runloop_check_state(
             }
 
             if (p_rarch->menu_driver_alive && !p_rarch->runloop_idle)
-               if (menu_display_libretro(p_rarch,
+               if (menu_display_libretro(p_rarch, settings,
                         libretro_running, current_time))
                   video_driver_cached_frame();
 
@@ -37727,11 +37692,18 @@ static enum runloop_state runloop_check_state(
        * for this frame. */
       if (check2)
       {
+         char msg[128];
          int cur_state_slot                = state_slot;
          if (check1)
             configuration_set_int(settings, settings->ints.state_slot,
                   cur_state_slot + addition);
-         update_savestate_slot(settings->ints.state_slot);
+         msg[0] = '\0';
+         snprintf(msg, sizeof(msg), "%s: %d",
+               msg_hash_to_str(MSG_STATE_SLOT),
+               settings->ints.state_slot);
+         runloop_msg_queue_push(msg, 2, 180, true, NULL,
+               MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
+         RARCH_LOG("%s\n", msg);
       }
 
       old_should_slot_increase = should_slot_increase;
@@ -38154,7 +38126,7 @@ int runloop_iterate(void)
    /* Increment runtime tick counter after each call to
     * core_run() or run_ahead() */
    p_rarch->libretro_core_runtime_usec += rarch_core_runtime_tick(
-         p_rarch, current_time);
+         p_rarch, settings, current_time);
 
 #ifdef HAVE_CHEEVOS
    if (settings->bools.cheevos_enable)
