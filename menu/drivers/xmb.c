@@ -4142,7 +4142,8 @@ static void xmb_draw_bg(
       }
 
       if (dispctx && dispctx->draw_pipeline)
-         dispctx->draw_pipeline(&draw, userdata, video_width, video_height);
+         dispctx->draw_pipeline(&draw, p_disp,
+               userdata, video_width, video_height);
    }
    else
 #endif
@@ -5770,14 +5771,12 @@ error:
    xmb_free_list_nodes(&xmb->horizontal_list, false);
    file_list_deinitialize(&xmb->selection_buf_old);
    file_list_deinitialize(&xmb->horizontal_list);
-   p_anim->updatetime_cb    = NULL;
    return NULL;
 }
 
 static void xmb_free(void *data)
 {
    xmb_handle_t       *xmb = (xmb_handle_t*)data;
-   gfx_animation_t *p_anim = anim_get_ptr();
 
    if (xmb)
    {
@@ -5802,8 +5801,6 @@ static void xmb_free(void *data)
       video_driver_texture_unload(&gfx_display_white_texture);
 
    font_driver_bind_block(NULL, NULL);
-
-   p_anim->updatetime_cb    = NULL;
 }
 
 static void xmb_context_bg_destroy(xmb_handle_t *xmb)
