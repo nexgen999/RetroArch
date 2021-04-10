@@ -15,8 +15,9 @@ extern "C"
 static void retroarch_fail(struct rarch_state *p_rarch,
       int error_code, const char *error);
 static void ui_companion_driver_toggle(
-      settings_t *settings,
       struct rarch_state *p_rarch,
+      bool desktop_menu_enable,
+      bool ui_companion_toggle,
       bool force);
 
 #ifdef HAVE_LIBNX
@@ -24,7 +25,7 @@ void libnx_apply_overclock(void);
 #endif
 #ifdef HAVE_ACCESSIBILITY
 #ifdef HAVE_TRANSLATE
-static bool is_narrator_running(struct rarch_state *p_rarch, settings_t *settings);
+static bool is_narrator_running(struct rarch_state *p_rarch, bool accessibility_enable);
 #endif
 #endif
 
@@ -101,7 +102,7 @@ static void input_overlay_load_active(
       struct rarch_state *p_rarch,
       input_overlay_t *ol, float opacity);
 static void input_overlay_auto_rotate_(struct rarch_state *p_rarch,
-      settings_t *settings, input_overlay_t *ol);
+      bool input_overlay_enable, input_overlay_t *ol);
 #endif
 
 #ifdef HAVE_AUDIOMIXER
@@ -152,30 +153,37 @@ static bool driver_location_start(void);
 static void driver_camera_stop(void);
 static bool driver_camera_start(void);
 static int16_t input_joypad_analog_button(
-      settings_t *settings,
+      float input_analog_deadzone,
+      float input_analog_sensitivity,
       const input_device_driver_t *drv,
       rarch_joypad_info_t *joypad_info,
-      unsigned port, unsigned idx, unsigned ident,
+      unsigned ident,
       const struct retro_keybind *binds);
 static int16_t input_joypad_analog_axis(
-      settings_t *settings,
+      unsigned input_analog_dpad_mode,
+      float input_analog_deadzone,
+      float input_analog_sensitivity,
       const input_device_driver_t *drv,
       rarch_joypad_info_t *joypad_info,
-      unsigned port, unsigned idx, unsigned ident,
+      unsigned idx,
+      unsigned ident,
       const struct retro_keybind *binds);
 
 #ifdef HAVE_ACCESSIBILITY
-static bool is_accessibility_enabled(settings_t *settings, bool accessibility_enabled);
+static bool is_accessibility_enabled(bool accessibility_enable,
+      bool accessibility_enabled);
 static bool accessibility_speak_priority(
       struct rarch_state *p_rarch,
-      settings_t *settings,
+      bool accessibility_enable,
+      unsigned accessibility_narrator_speech_speed,
       const char* speak_text, int priority);
 #endif
 
 #ifdef HAVE_MENU
 static bool input_mouse_button_raw(
       struct rarch_state *p_rarch,
-      settings_t *settings,
+      input_driver_t *current_input,
+      unsigned joy_idx,
       unsigned port, unsigned id);
 static bool input_keyboard_line_append(
       struct input_keyboard_line *keyboard_line,
