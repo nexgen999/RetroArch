@@ -25487,7 +25487,6 @@ static const char **input_keyboard_start_line(
 
    return (const char**)&keyboard_line->buffer;
 }
-#endif
 
 #ifdef HAVE_ACCESSIBILITY
 static const char *accessibility_lut_name(char key)
@@ -25568,6 +25567,7 @@ static const char *accessibility_lut_name(char key)
    }
    return NULL;
 }
+#endif
 #endif
 
 /**
@@ -35536,8 +35536,9 @@ void retroarch_menu_running_finished(bool quit)
     * (for a single frame) */
    p_rarch->input_driver_flushing_input = 1;
 
-#ifdef HAVE_AUDIOMIXER
    if (!quit)
+   {
+#ifdef HAVE_AUDIOMIXER
       /* Stop menu background music before we exit the menu */
       if (  settings &&
             settings->bools.audio_enable_menu &&
@@ -35546,19 +35547,20 @@ void retroarch_menu_running_finished(bool quit)
          audio_driver_mixer_stop_stream(AUDIO_MIXER_SYSTEM_SLOT_BGM);
 #endif
 
-   /* Enable game focus mode, if required */
-   if (!quit && (p_rarch->current_core_type != CORE_TYPE_DUMMY))
-   {
-      enum input_auto_game_focus_type auto_game_focus_type = settings ?
-            (enum input_auto_game_focus_type)settings->uints.input_auto_game_focus :
-                  AUTO_GAME_FOCUS_OFF;
-
-      if ((auto_game_focus_type == AUTO_GAME_FOCUS_ON) ||
-          ((auto_game_focus_type == AUTO_GAME_FOCUS_DETECT) &&
-               p_rarch->game_focus_state.core_requested))
+      /* Enable game focus mode, if required */
+      if (p_rarch->current_core_type != CORE_TYPE_DUMMY)
       {
-         enum input_game_focus_cmd_type game_focus_cmd = GAME_FOCUS_CMD_ON;
-         command_event(CMD_EVENT_GAME_FOCUS_TOGGLE, &game_focus_cmd);
+         enum input_auto_game_focus_type auto_game_focus_type = settings ?
+            (enum input_auto_game_focus_type)settings->uints.input_auto_game_focus :
+            AUTO_GAME_FOCUS_OFF;
+
+         if ((auto_game_focus_type == AUTO_GAME_FOCUS_ON) ||
+               ((auto_game_focus_type == AUTO_GAME_FOCUS_DETECT) &&
+                p_rarch->game_focus_state.core_requested))
+         {
+            enum input_game_focus_cmd_type game_focus_cmd = GAME_FOCUS_CMD_ON;
+            command_event(CMD_EVENT_GAME_FOCUS_TOGGLE, &game_focus_cmd);
+         }
       }
    }
 
@@ -38165,11 +38167,13 @@ int runloop_iterate(void)
          return 1;
       case RUNLOOP_STATE_END:
 #ifdef HAVE_NETWORKING
+#ifdef HAVE_MENU
          /* FIXME: This is an ugly way to tell Netplay this... */
          if (menu_pause_libretro &&
                netplay_driver_ctl(RARCH_NETPLAY_CTL_IS_ENABLED, NULL)
             )
             netplay_driver_ctl(RARCH_NETPLAY_CTL_PAUSE, NULL);
+#endif
 #endif
          goto end;
       case RUNLOOP_STATE_MENU_ITERATE:
