@@ -4906,7 +4906,7 @@ static void menu_driver_set_last_shader_path_int(
       return;
 
    /* Cache file name */
-   file_name = path_basename(shader_path);
+   file_name = path_basename_nocompression(shader_path);
    if (!string_is_empty(file_name))
       strlcpy(shader_file, file_name, file_len);
 }
@@ -5132,7 +5132,7 @@ void menu_driver_set_last_start_content(const char *start_content_path)
       file_name       = path_basename(archive_path);
    }
    else
-      file_name       = path_basename(start_content_path);
+      file_name       = path_basename_nocompression(start_content_path);
 
    if (!string_is_empty(file_name))
       strlcpy(menu->last_start_content.file_name, file_name,
@@ -10651,7 +10651,7 @@ static bool retroarch_apply_shader(
       return false;
 
    if (!string_is_empty(preset_path))
-      preset_file = path_basename(preset_path);
+      preset_file = path_basename_nocompression(preset_path);
 
    p_rarch->runtime_shader_preset[0] = '\0';
 
@@ -12063,6 +12063,46 @@ static void command_event_disable_overrides(struct rarch_state *p_rarch)
    config_unload_override();
    p_rarch->runloop_overrides_active = false;
 }
+
+void input_remapping_set_defaults(void)
+{
+   unsigned i, j;
+   struct rarch_state *p_rarch = &rarch_st;
+   settings_t *settings        = p_rarch->configuration_settings;
+   global_t     *global        = &p_rarch->g_extern;
+
+   for (i = 0; i < MAX_USERS; i++)
+   {
+      for (j = 0; j < RARCH_FIRST_CUSTOM_BIND; j++)
+      {
+         const struct  retro_keybind *keybind = &input_config_binds[i][j];
+         if (keybind)
+            configuration_set_uint(settings,
+                  settings->uints.input_remap_ids[i][j], keybind->id);
+         configuration_set_uint(settings,
+               settings->uints.input_keymapper_ids[i][j], RETROK_UNKNOWN);
+      }
+
+      for (j = RARCH_FIRST_CUSTOM_BIND; j < (RARCH_FIRST_CUSTOM_BIND + 8); j++)
+         configuration_set_uint(settings,
+               settings->uints.input_remap_ids[i][j], j);
+   }
+
+   if (global)
+   {
+      for (i = 0; i < MAX_USERS; i++)
+      {
+         if (global->old_analog_dpad_mode[i])
+            configuration_set_uint(settings,
+                  settings->uints.input_analog_dpad_mode[i],
+                  global->old_analog_dpad_mode[i]);
+         if (global->old_libretro_device[i])
+            configuration_set_uint(settings,
+                  settings->uints.input_libretro_device[i],
+                  global->old_libretro_device[i]);
+      }
+   }
+}
 #endif
 
 static void command_event_deinit_core(
@@ -12099,7 +12139,10 @@ static void command_event_deinit_core(
          || p_rarch->runloop_remaps_content_dir_active
          || p_rarch->runloop_remaps_game_active
       )
-      input_remapping_set_defaults(true);
+   {
+      input_remapping_deinit();
+      input_remapping_set_defaults();
+   }
 #endif
 }
 
@@ -13015,6 +13058,18 @@ static bool command_event_resize_windowed_scale(struct rarch_state *p_rarch)
    return true;
 }
 
+void input_remapping_deinit(void)
+{
+   struct rarch_state *p_rarch = &rarch_st;
+   global_t     *global        = &p_rarch->g_extern;
+   if (!string_is_empty(global->name.remapfile))
+      free(global->name.remapfile);
+   global->name.remapfile                     = NULL;
+   p_rarch->runloop_remaps_core_active        = false;
+   p_rarch->runloop_remaps_content_dir_active = false;
+   p_rarch->runloop_remaps_game_active        = false;
+}
+
 static bool input_driver_grab_mouse(struct rarch_state *p_rarch)
 {
    if (!p_rarch->current_input || !p_rarch->current_input->grab_mouse)
@@ -13592,7 +13647,10 @@ bool command_event(enum event_command cmd, void *data)
                   || p_rarch->runloop_remaps_content_dir_active
                   || p_rarch->runloop_remaps_game_active
                )
-               input_remapping_set_defaults(true);
+            {
+               input_remapping_deinit();
+               input_remapping_set_defaults();
+            }
 #endif
 
             if (is_inited)
@@ -18910,7 +18968,7 @@ static char *copy_core_to_temp_file(struct rarch_state *p_rarch,
    void  *dll_file_data        = NULL;
    int64_t  dll_file_size      = 0;
    const char  *core_path      = path_get(RARCH_PATH_CORE);
-   const char  *core_base_name = path_basename(core_path);
+   const char  *core_base_name = path_basename_nocompression(core_path);
 
    if (strlen(core_base_name) == 0)
       return NULL;
@@ -35874,29 +35932,19 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
          return (p_rarch->current_core_type == CORE_TYPE_DUMMY);
       case RARCH_CTL_IS_CORE_LOADED:
          {
-            const char *core_path        = (const char*)data;
-            const char *core_file        = NULL;
-            const char *loaded_core_path = NULL;
-            const char *loaded_core_file = NULL;
-
-            if (string_is_empty(core_path))
-               return false;
-
-            /* Get core file name */
-            core_file = path_basename(core_path);
-            if (string_is_empty(core_file))
-               return false;
-
-            /* Get loaded core file name */
-            loaded_core_path = path_get(RARCH_PATH_CORE);
-            if (!string_is_empty(loaded_core_path))
-               loaded_core_file = path_basename(loaded_core_path);
-
-            /* Check whether specified core and currently
-             * loaded core are the same */
-            if (!string_is_empty(loaded_core_file) &&
-                string_is_equal(core_file, loaded_core_file))
-               return true;
+            const char *core_path = (const char*)data;
+            const char *core_file = path_basename_nocompression(core_path);
+            if (!string_is_empty(core_file))
+            {
+               /* Get loaded core file name */
+               const char *loaded_core_file = path_basename_nocompression(
+                     path_get(RARCH_PATH_CORE));
+               /* Check whether specified core and currently
+                * loaded core are the same */
+               if (!string_is_empty(loaded_core_file))
+                  if (string_is_equal(core_file, loaded_core_file))
+                     return true;
+            }
          }
          return false;
       case RARCH_CTL_HAS_SET_USERNAME:
@@ -35984,24 +36032,15 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
       case RARCH_CTL_SET_REMAPS_CORE_ACTIVE:
          p_rarch->runloop_remaps_core_active = true;
          break;
-      case RARCH_CTL_UNSET_REMAPS_CORE_ACTIVE:
-         p_rarch->runloop_remaps_core_active = false;
-         break;
       case RARCH_CTL_IS_REMAPS_CORE_ACTIVE:
          return p_rarch->runloop_remaps_core_active;
       case RARCH_CTL_SET_REMAPS_GAME_ACTIVE:
          p_rarch->runloop_remaps_game_active = true;
          break;
-      case RARCH_CTL_UNSET_REMAPS_GAME_ACTIVE:
-         p_rarch->runloop_remaps_game_active = false;
-         break;
       case RARCH_CTL_IS_REMAPS_GAME_ACTIVE:
          return p_rarch->runloop_remaps_game_active;
       case RARCH_CTL_SET_REMAPS_CONTENT_DIR_ACTIVE:
          p_rarch->runloop_remaps_content_dir_active = true;
-         break;
-      case RARCH_CTL_UNSET_REMAPS_CONTENT_DIR_ACTIVE:
-         p_rarch->runloop_remaps_content_dir_active = false;
          break;
       case RARCH_CTL_IS_REMAPS_CONTENT_DIR_ACTIVE:
          return p_rarch->runloop_remaps_content_dir_active;
@@ -36623,7 +36662,10 @@ bool retroarch_main_quit(void)
             || p_rarch->runloop_remaps_content_dir_active
             || p_rarch->runloop_remaps_game_active
          )
-         input_remapping_set_defaults(true);
+      {
+         input_remapping_deinit();
+         input_remapping_set_defaults();
+      }
 #endif
    }
 

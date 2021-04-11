@@ -1990,6 +1990,7 @@ static int generic_action_ok(const char *path,
             conf_key[0]             = '\0';
 
             if (conf)
+            {
                if (input_remapping_load_file(conf, action_path))
                {
                   for (port = 0; port < MAX_USERS; port++)
@@ -2005,6 +2006,9 @@ static int generic_action_ok(const char *path,
                      core_set_controller_port_device(&pad);
                   }
                }
+               config_file_free(conf);
+               conf = NULL;
+            }
          }
 #endif
          break;
@@ -3407,22 +3411,22 @@ static int generic_action_ok_remap_file_operation(const char *path,
             case ACTION_OK_REMAP_FILE_REMOVE_CORE:
                if (rarch_ctl(RARCH_CTL_IS_REMAPS_CORE_ACTIVE, NULL))
                {
-                  rarch_ctl(RARCH_CTL_UNSET_REMAPS_CORE_ACTIVE, NULL);
-                  input_remapping_set_defaults(true);
+                  input_remapping_deinit();
+                  input_remapping_set_defaults();
                }
                break;
             case ACTION_OK_REMAP_FILE_REMOVE_GAME:
                if (rarch_ctl(RARCH_CTL_IS_REMAPS_GAME_ACTIVE, NULL))
                {
-                  rarch_ctl(RARCH_CTL_UNSET_REMAPS_GAME_ACTIVE, NULL);
-                  input_remapping_set_defaults(true);
+                  input_remapping_deinit();
+                  input_remapping_set_defaults();
                }
                break;
             case ACTION_OK_REMAP_FILE_REMOVE_CONTENT_DIR:
                if (rarch_ctl(RARCH_CTL_IS_REMAPS_CONTENT_DIR_ACTIVE, NULL))
                {
-                  rarch_ctl(RARCH_CTL_UNSET_REMAPS_CONTENT_DIR_ACTIVE, NULL);
-                  input_remapping_set_defaults(true);
+                  input_remapping_deinit();
+                  input_remapping_set_defaults();
                }
                break;
          }
@@ -7192,7 +7196,7 @@ int action_ok_core_lock(const char *path,
          core_name = core_info.inf->display_name;
       /* If not, use core file name */
       else
-         core_name = path_basename(core_path);
+         core_name = path_basename_nocompression(core_path);
 
       /* Build error message */
       strlcpy(
@@ -7252,7 +7256,7 @@ static int action_ok_core_delete(const char *path,
          core_name = core_info.inf->display_name;
       /* If not, use core file name */
       else
-         core_name = path_basename(core_path);
+         core_name = path_basename_nocompression(core_path);
 
       /* Build notification message */
       strlcpy(msg, msg_hash_to_str(MSG_CORE_DELETE_DISABLED), sizeof(msg));
@@ -7285,7 +7289,7 @@ static int action_ok_core_delete(const char *path,
     * interface */
    if (play_feature_delivery_enabled())
    {
-      const char *core_filename = path_basename(core_path);
+      const char *core_filename = path_basename_nocompression(core_path);
       char backup_core_path[PATH_MAX_LENGTH];
 
       backup_core_path[0] = '\0';

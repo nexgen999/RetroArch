@@ -123,15 +123,12 @@ enum rarch_ctl_state
 
    RARCH_CTL_IS_REMAPS_CORE_ACTIVE,
    RARCH_CTL_SET_REMAPS_CORE_ACTIVE,
-   RARCH_CTL_UNSET_REMAPS_CORE_ACTIVE,
 
    RARCH_CTL_IS_REMAPS_CONTENT_DIR_ACTIVE,
    RARCH_CTL_SET_REMAPS_CONTENT_DIR_ACTIVE,
-   RARCH_CTL_UNSET_REMAPS_CONTENT_DIR_ACTIVE,
 
    RARCH_CTL_IS_REMAPS_GAME_ACTIVE,
    RARCH_CTL_SET_REMAPS_GAME_ACTIVE,
-   RARCH_CTL_UNSET_REMAPS_GAME_ACTIVE,
 #endif
 
    RARCH_CTL_IS_MISSING_BIOS,
@@ -288,6 +285,8 @@ typedef struct global
       bool softfilter_enable;
 
    } console;
+   unsigned old_analog_dpad_mode[MAX_USERS];
+   unsigned old_libretro_device[MAX_USERS];
    /* Settings and/or global states specific to menus */
 #ifdef HAVE_MENU
    enum menu_action menu_prev_action;
