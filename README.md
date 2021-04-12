@@ -6,7 +6,7 @@ Generate Microsoft Store package for Xbox:
 
 Generate dev mode package for Xbox:  
 
-[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_apis/build/status/RA%20Generate%20Dev%20Mode%20Package?branchName=main&jobName=Job)
+[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_apis/build/status/RA%20Generate%20Dev%20Mode%20Package?branchName=main&jobName=Job)](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_build/latest?definitionId=16&branchName=main)
 
 CI on commit to repo:
 
