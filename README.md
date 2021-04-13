@@ -1,4 +1,4 @@
-This uses RetroArch-Redist, another repository, to add the .dll files to Azure builds for use with the Microsoft Store.  A package for upload to the Microsoft Store is automatically created once a week.
+This uses RetroArch-Redist, another repository, to add the .dll files to Azure builds for use with the Microsoft Store. A package for upload to the Microsoft Store is automatically created once a week.
 
 Generate Microsoft Store package for Xbox: 
 
