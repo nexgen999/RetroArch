@@ -479,15 +479,32 @@ static int16_t input_state_wrap(
           * states together */
          if (binds[port][id].valid)
          {
-            if (button_is_pressed(
-                     joypad,
-                     joypad_info, binds[port], id))
+            /* Auto-binds are per joypad, not per user. */
+            const uint64_t bind_joykey     = binds[port][id].joykey;
+            const uint64_t bind_joyaxis    = binds[port][id].joyaxis;
+            const uint64_t autobind_joykey = joypad_info->auto_binds[id].joykey;
+            const uint64_t autobind_joyaxis= joypad_info->auto_binds[id].joyaxis;
+            uint16_t port                  = joypad_info->joy_idx;
+            float axis_threshold           = joypad_info->axis_threshold;
+            const uint64_t joykey          = (bind_joykey != NO_BTN)
+               ? bind_joykey  : autobind_joykey;
+            const uint32_t joyaxis         = (bind_joyaxis != AXIS_NONE)
+               ? bind_joyaxis : autobind_joyaxis;
+
+            if ((uint16_t)joykey != NO_BTN && joypad->button(
+                     port, (uint16_t)joykey))
+               return 1;
+            if (joyaxis != AXIS_NONE &&
+                  ((float)abs(joypad->axis(port, joyaxis)) 
+                   / 0x8000) > axis_threshold)
                return 1;
 #ifdef HAVE_MFI
-            else if (sec_joypad &&
-                  button_is_pressed(
-                     sec_joypad,
-                     joypad_info, binds[port], id))
+            if ((uint16_t)joykey != NO_BTN && sec_joypad->button(
+                     port, (uint16_t)joykey))
+               return 1;
+            if (joyaxis != AXIS_NONE &&
+                  ((float)abs(sec_joypad->axis(port, joyaxis)) 
+                   / 0x8000) > axis_threshold)
                return 1;
 #endif
          }
@@ -12478,23 +12495,28 @@ static void command_event_runtime_log_deinit(
       const char *dir_runtime_log,
       const char *dir_playlist)
 {
-   char log[PATH_MAX_LENGTH]    = {0};
-   unsigned hours               = 0;
-   unsigned minutes             = 0;
-   unsigned seconds             = 0;
-   int n                        = 0;
+   if (verbosity_is_enabled())
+   {
+      int n;
+      char log[PATH_MAX_LENGTH] = {0};
+      unsigned hours            = 0;
+      unsigned minutes          = 0;
+      unsigned seconds          = 0;
 
-   /* TODO/FIXME - should we hide this logging behind verbosity being enabled? */
-   runtime_log_convert_usec2hms(
-         p_rarch->libretro_core_runtime_usec,
-         &hours, &minutes, &seconds);
-   n = snprintf(log, sizeof(log),
-         "[Core]: Content ran for a total of: %02u hours, %02u minutes, %02u seconds.",
-         hours, minutes, seconds);
-   if ((n < 0) || (n >= PATH_MAX_LENGTH))
-      n = 0; /* Just silence any potential gcc warnings... */
-   (void)n;
-   RARCH_LOG("%s\n",log);
+      runtime_log_convert_usec2hms(
+            p_rarch->libretro_core_runtime_usec,
+            &hours, &minutes, &seconds);
+
+      n                         = 
+         snprintf(log, sizeof(log),
+               "[Core]: Content ran for a total of:"
+               " %02u hours, %02u minutes, %02u seconds.",
+               hours, minutes, seconds);
+      if ((n < 0) || (n >= PATH_MAX_LENGTH))
+         n = 0; /* Just silence any potential gcc warnings... */
+      (void)n;
+      RARCH_LOG("%s\n",log);
+   }
 
    /* Only write to file if content has run for a non-zero length of time */
    if (p_rarch->libretro_core_runtime_usec > 0)
@@ -22207,7 +22229,8 @@ static void input_driver_poll(void)
                                     input_analog_sensitivity,
                                     joypad_driver, &joypad_info[i],
                                     k,
-                                    p_rarch->libretro_input_binds[i]);
+                                    &p_rarch->libretro_input_binds[i][k]
+                                    );
                            if (val)
                               p_new_state->analog_buttons[k] = val;
                         }
@@ -22858,13 +22881,15 @@ static int16_t input_state(unsigned port, unsigned device,
                               input_analog_deadzone,
                               input_analog_sensitivity,
                               sec_joypad, &joypad_info,
-                              id, p_rarch->libretro_input_binds[port]);
+                              id,
+                              &p_rarch->libretro_input_binds[port][id]);
                   if (joypad && (ret == 0))
                      ret          = input_joypad_analog_button(
                            input_analog_deadzone,
                            input_analog_sensitivity,
                            joypad, &joypad_info,
-                           id, p_rarch->libretro_input_binds[port]);
+                           id,
+                           &p_rarch->libretro_input_binds[port][id]);
                }
             }
          }
@@ -25025,17 +25050,29 @@ bool input_key_pressed(int key, bool keyboard_pressed)
       )
    {
       rarch_joypad_info_t joypad_info;
-      struct rarch_state           
-         *p_rarch                = &rarch_st;
+      struct rarch_state *p_rarch    = &rarch_st;
       const input_device_driver_t
-         *joypad                 = (const input_device_driver_t*)p_rarch->joypad;
-      joypad_info.joy_idx        = 0;
-      joypad_info.auto_binds     = input_autoconf_binds[0];
-      joypad_info.axis_threshold = p_rarch->input_driver_axis_threshold;
-      return button_is_pressed(
-            joypad, &joypad_info,
-            input_config_binds[0],
-            key);
+         *joypad                     = (const input_device_driver_t*)
+         p_rarch->joypad;
+      const uint64_t bind_joykey     = input_config_binds[0][key].joykey;
+      const uint64_t bind_joyaxis    = input_config_binds[0][key].joyaxis;
+      const uint64_t autobind_joykey = input_autoconf_binds[0][key].joykey;
+      const uint64_t autobind_joyaxis= input_autoconf_binds[0][key].joyaxis;
+      uint16_t port                  = 0;
+      float axis_threshold           = p_rarch->input_driver_axis_threshold;
+      const uint64_t joykey          = (bind_joykey != NO_BTN)
+         ? bind_joykey  : autobind_joykey;
+      const uint32_t joyaxis         = (bind_joyaxis != AXIS_NONE)
+         ? bind_joyaxis : autobind_joyaxis;
+
+      if ((uint16_t)joykey != NO_BTN && joypad->button(
+               port, (uint16_t)joykey))
+         return true;
+      if (joyaxis != AXIS_NONE &&
+            ((float)abs(joypad->axis(port, joyaxis)) 
+             / 0x8000) > axis_threshold)
+         return true;
+      return false;
    }
    return true;
 }
@@ -25044,34 +25081,6 @@ bool input_mouse_grabbed(void)
 {
    struct rarch_state *p_rarch = &rarch_st;
    return p_rarch->input_driver_grab_mouse_state;
-}
-
-int16_t button_is_pressed(
-      const input_device_driver_t *joypad,
-      rarch_joypad_info_t *joypad_info,
-      const struct retro_keybind *binds,
-      unsigned id)
-{
-    /* Auto-binds are per joypad, not per user. */
-    const uint64_t bind_joykey     = binds[id].joykey;
-    const uint64_t bind_joyaxis    = binds[id].joyaxis;
-    const uint64_t autobind_joykey = joypad_info->auto_binds[id].joykey;
-    const uint64_t autobind_joyaxis= joypad_info->auto_binds[id].joyaxis;
-    uint16_t port                  = joypad_info->joy_idx;
-    float axis_threshold           = joypad_info->axis_threshold;
-    const uint64_t joykey          = (bind_joykey != NO_BTN)
-    ? bind_joykey  : autobind_joykey;
-    const uint32_t joyaxis         = (bind_joyaxis != AXIS_NONE)
-    ? bind_joyaxis : autobind_joyaxis;
-
-    if ((uint16_t)joykey != NO_BTN && joypad->button(
-            port, (uint16_t)joykey))
-        return 1;
-    if (joyaxis != AXIS_NONE &&
-          ((float)abs(joypad->axis(port, joyaxis)) 
-           / 0x8000) > axis_threshold)
-        return 1;
-    return 0;
 }
 
 /**
@@ -25099,11 +25108,10 @@ static int16_t input_joypad_analog_button(
       const input_device_driver_t *drv,
       rarch_joypad_info_t *joypad_info,
       unsigned ident,
-      const struct retro_keybind *binds)
+      const struct retro_keybind *bind)
 {
    int16_t res                      = 0;
    float normal_mag                 = 0.0f;
-   const struct retro_keybind *bind = &binds[ ident ];
    uint32_t axis                    = (bind->joyaxis == AXIS_NONE)
       ? joypad_info->auto_binds[ident].joyaxis
       : bind->joyaxis;
@@ -25113,9 +25121,9 @@ static int16_t input_joypad_analog_button(
    {
       int16_t mult = 0;
       if (axis != AXIS_NONE)
-         mult      = drv->axis(
-               joypad_info->joy_idx, axis);
-      normal_mag   = fabs((1.0f / 0x7fff) * mult);
+         if ((mult = drv->axis(
+                     joypad_info->joy_idx, axis)) != 0)
+            normal_mag   = fabs((1.0f / 0x7fff) * mult);
    }
 
    /* If the result is zero, it's got a digital button
