@@ -405,27 +405,6 @@
 #define MENU_MAX_MBUTTONS          32 /* Enough to cover largest libretro constant*/
 #endif
 
-#ifndef HAVE_LANGEXTRA
-/* If HAVE_LANGEXTRA is not defined, define some ASCII-friendly pages. */
-static const char *symbols_page1_grid[] = {
-                          "1","2","3","4","5","6","7","8","9","0","Bksp",
-                          "!","\"","#","$","%","&","'","*","(",")","Enter",
-                          "+",",","-","~","/",":",";","=","<",">","Lower",
-                          "?","@","[","\\","]","^","_","|","{","}","Next"};
-
-static const char *uppercase_grid[] = {
-                          "1","2","3","4","5","6","7","8","9","0","Bksp",
-                          "Q","W","E","R","T","Y","U","I","O","P","Enter",
-                          "A","S","D","F","G","H","J","K","L","+","Lower",
-                          "Z","X","C","V","B","N","M"," ","_","/","Next"};
-
-static const char *lowercase_grid[] = {
-                          "1","2","3","4","5","6","7","8","9","0","Bksp",
-                          "q","w","e","r","t","y","u","i","o","p","Enter",
-                          "a","s","d","f","g","h","j","k","l","@","Upper",
-                          "z","x","c","v","b","n","m"," ","-",".","Next"};
-#endif
-
 /* DRIVERS */
 
 audio_driver_t audio_null = {
@@ -2632,16 +2611,7 @@ struct key_desc key_descriptors[RARCH_MAX_KEYS] =
    {RETROK_UNDO,          "Undo"},
    {RETROK_OEM_102,       "OEM-102"}
 };
-#endif
 
-#if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-static enum rarch_shader_type shader_types[] =
-{
-   RARCH_SHADER_GLSL, RARCH_SHADER_SLANG, RARCH_SHADER_CG
-};
-#endif
-
-#ifdef HAVE_MENU
 static void *null_menu_init(void **userdata, bool video_is_threaded)
 {
    menu_handle_t *menu = (menu_handle_t*)calloc(1, sizeof(*menu));
@@ -2649,6 +2619,7 @@ static void *null_menu_init(void **userdata, bool video_is_threaded)
       return NULL;
    return menu;
 }
+
 static int null_menu_list_bind_init(menu_file_list_cbs_t *cbs,
       const char *path, const char *label, unsigned type, size_t idx) { return 0; }
 

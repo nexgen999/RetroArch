@@ -5876,6 +5876,10 @@ static bool menu_shader_manager_operate_auto_preset(
    char config_directory[PATH_MAX_LENGTH];
    char tmp[PATH_MAX_LENGTH];
    char file[PATH_MAX_LENGTH];
+   static enum rarch_shader_type shader_types[] =
+   {
+      RARCH_SHADER_GLSL, RARCH_SHADER_SLANG, RARCH_SHADER_CG
+   };
    const char *core_name            = system ? system->library_name : NULL;
    const char *auto_preset_dirs[3]  = {0};
 
@@ -5944,13 +5948,13 @@ static bool menu_shader_manager_operate_auto_preset(
          {
             /* remove all supported auto-shaders of given type */
             char *end;
-            size_t i, j, n, m;
+            size_t i, j, m;
 
             char preset_path[PATH_MAX_LENGTH];
 
             /* n = amount of relevant shader presets found
              * m = amount of successfully deleted shader presets */
-            n = m = 0;
+            size_t n = m = 0;
 
             for (i = 0; i < ARRAY_SIZE(auto_preset_dirs); i++)
             {
@@ -23445,6 +23449,24 @@ static void input_event_osk_iterate(
       void *osk_grid,
       enum osk_type osk_idx)
 {
+#ifndef HAVE_LANGEXTRA
+   /* If HAVE_LANGEXTRA is not defined, define some ASCII-friendly pages. */
+   static const char *uppercase_grid[] = {
+      "1","2","3","4","5","6","7","8","9","0","Bksp",
+      "Q","W","E","R","T","Y","U","I","O","P","Enter",
+      "A","S","D","F","G","H","J","K","L","+","Lower",
+      "Z","X","C","V","B","N","M"," ","_","/","Next"};
+   static const char *lowercase_grid[] = {
+      "1","2","3","4","5","6","7","8","9","0","Bksp",
+      "q","w","e","r","t","y","u","i","o","p","Enter",
+      "a","s","d","f","g","h","j","k","l","@","Upper",
+      "z","x","c","v","b","n","m"," ","-",".","Next"};
+   static const char *symbols_page1_grid[] = {
+      "1","2","3","4","5","6","7","8","9","0","Bksp",
+      "!","\"","#","$","%","&","'","*","(",")","Enter",
+      "+",",","-","~","/",":",";","=","<",">","Lower",
+      "?","@","[","\\","]","^","_","|","{","}","Next"};
+#endif
    switch (osk_idx)
    {
 #ifdef HAVE_LANGEXTRA
