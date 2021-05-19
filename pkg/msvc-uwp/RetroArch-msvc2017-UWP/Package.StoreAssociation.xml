@@ -361,9 +361,9 @@
     <Language Code="zu-za" InMinimumRequirementSet="true" />
   </SupportedLocales>
   <ProductReservedInfo>
-    <MainPackageIdentityName>38290N-Soft.RetroRev</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroArch-Unstable</MainPackageIdentityName>
     <ReservedNames>
-      <ReservedName>RetroRev</ReservedName>
+      <ReservedName>RetroArch - Unstable</ReservedName>
     </ReservedNames>
   </ProductReservedInfo>
   <AccountPackageIdentityNames>
@@ -380,17 +380,16 @@
     <MainPackageIdentityName>38290N-Soft.KodiNz</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.LinuxPort</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.MinerNz</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PacmanEmulator</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.PSPEmulator</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.Retroarch-NoCores</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroArch-Older</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroArch-Scratch</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArch-Unstable</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroArchExperimental</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroRev</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RXFileExplorer</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.UWPFileExplorer</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.XboxGameStreaming</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.XboxPackageInstaller</MainPackageIdentityName>
   </AccountPackageIdentityNames>
-  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NW7Q07Q6G11" />
+  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NWXWFRL4W11" />
 </StoreAssociation>
