@@ -44,10 +44,19 @@ static bool midi_driver_set_all_sounds_off(struct rarch_state *p_rarch);
 static const void *midi_driver_find_handle(int index);
 static bool midi_driver_flush(void);
 
-static void retroarch_deinit_core_options(const char *p);
-static void retroarch_init_core_variables(settings_t *settings,
+retro_time_t runloop_core_runtime_tick(
+      runloop_state_t *p_runloop,
+      float slowmotion_ratio,
+      retro_time_t current_time);
+void runloop_deinit_core_options(
+      runloop_state_t *p_runloop,
+      const char *path_core_options);
+core_option_manager_t *runloop_init_core_variables(
+      runloop_state_t *p_runloop,
+      settings_t *settings,
       const struct retro_variable *vars);
-static void rarch_init_core_options(
+core_option_manager_t *runloop_init_core_options(
+      runloop_state_t *p_runloop,
       settings_t *settings,
       const struct retro_core_option_definition *option_defs);
 #ifdef HAVE_RUNAHEAD
@@ -122,9 +131,9 @@ static bool video_driver_find_driver(
       const char *prefix, bool verbosity_enabled);
 
 #ifdef HAVE_BSV_MOVIE
-static void bsv_movie_deinit(struct rarch_state *p_rarch);
-static bool bsv_movie_init(struct rarch_state *p_rarch);
-static bool bsv_movie_check(struct rarch_state *p_rarch,
+static void bsv_movie_deinit(runloop_state_t *p_runloop);
+static bool bsv_movie_init(runloop_state_t *p_runloop);
+static bool bsv_movie_check(runloop_state_t *p_runloop,
       settings_t *settings);
 #endif
 
