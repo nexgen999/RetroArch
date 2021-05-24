@@ -145,14 +145,6 @@
 
 #define VIDEO_DRIVER_GET_HW_CONTEXT_INTERNAL(p_rarch) (&p_rarch->hw_render)
 
-#ifdef HAVE_THREADS
-#define RUNLOOP_MSG_QUEUE_LOCK(runloop) slock_lock(runloop.msg_queue_lock)
-#define RUNLOOP_MSG_QUEUE_UNLOCK(runloop) slock_unlock(runloop.msg_queue_lock)
-#else
-#define RUNLOOP_MSG_QUEUE_LOCK(p_runloop)
-#define RUNLOOP_MSG_QUEUE_UNLOCK(p_runloop)
-#endif
-
 /* Time to exit out of the main loop?
  * Reasons for exiting:
  * a) Shutdown environment callback was invoked.
@@ -1256,14 +1248,6 @@ enum auto_shader_operation
    AUTO_SHADER_OP_SAVE = 0,
    AUTO_SHADER_OP_REMOVE,
    AUTO_SHADER_OP_EXISTS
-};
-
-enum input_game_focus_cmd_type
-{
-   GAME_FOCUS_CMD_OFF = 0,
-   GAME_FOCUS_CMD_ON,
-   GAME_FOCUS_CMD_TOGGLE,
-   GAME_FOCUS_CMD_REAPPLY
 };
 
 typedef struct runloop_ctx_msg_info
