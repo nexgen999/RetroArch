@@ -41,6 +41,7 @@
 
 #ifdef HAVE_CHEEVOS
 #include "../cheevos/cheevos.h"
+#include "../cheevos/cheevos_menu.h"
 #endif
 
 #ifdef HAVE_NETWORKING
@@ -8866,7 +8867,7 @@ unsigned menu_displaylist_build_list(
 #ifdef HAVE_BLUETOOTH
                {MENU_ENUM_LABEL_BLUETOOTH_DRIVER,      PARSE_ONLY_STRING_OPTIONS},
 #endif
-#ifdef HAVE_LAKKA
+#if defined(HAVE_LAKKA) || defined(HAVE_WIFI)
                {MENU_ENUM_LABEL_WIFI_DRIVER,           PARSE_ONLY_STRING_OPTIONS},
 #endif
             };
@@ -10982,7 +10983,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
       case DISPLAYLIST_ACHIEVEMENT_PAUSE_MENU:
 #ifdef HAVE_CHEEVOS
          menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
-         rcheevos_populate_hardcore_pause_menu(info);
+         rcheevos_menu_populate_hardcore_pause_submenu(info);
 #endif
          info->need_push = true;
          info->need_refresh = true;
@@ -10990,7 +10991,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
       case DISPLAYLIST_ACHIEVEMENT_LIST:
 #ifdef HAVE_CHEEVOS
          menu_entries_ctl(MENU_ENTRIES_CTL_CLEAR, info->list);
-         rcheevos_populate_menu(info);
+         rcheevos_menu_populate(info);
 #endif
          info->need_push    = true;
          info->need_refresh = true;
