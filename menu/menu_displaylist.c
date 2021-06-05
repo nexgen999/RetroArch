@@ -7382,6 +7382,7 @@ unsigned menu_displaylist_build_list(
                {MENU_ENUM_LABEL_CHEEVOS_PASSWORD,                                      PARSE_ONLY_STRING, false },
                {MENU_ENUM_LABEL_CHEEVOS_HARDCORE_MODE_ENABLE,                          PARSE_ONLY_BOOL,   false  },
                {MENU_ENUM_LABEL_CHEEVOS_LEADERBOARDS_ENABLE,                           PARSE_ONLY_STRING_OPTIONS,   false  },
+               {MENU_ENUM_LABEL_CHEEVOS_CHALLENGE_INDICATORS,                          PARSE_ONLY_BOOL,   false  },
                {MENU_ENUM_LABEL_CHEEVOS_RICHPRESENCE_ENABLE,                           PARSE_ONLY_BOOL,   false  },
                {MENU_ENUM_LABEL_CHEEVOS_BADGES_ENABLE,                                 PARSE_ONLY_BOOL,   false  },
                {MENU_ENUM_LABEL_CHEEVOS_TEST_UNOFFICIAL,                               PARSE_ONLY_BOOL,   false  },
@@ -9739,7 +9740,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
                {
                   if (!string_is_empty(cd_info.title))
                   {
-                     char title[256];
+                     char title[sizeof("Title: ")+sizeof(cd_info.title)];
                      snprintf(title, sizeof(title), "Title: %s", cd_info.title);
 
                      if (menu_entries_append_enum(info->list,
