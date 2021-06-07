@@ -6,7 +6,7 @@ Generate Microsoft Store package for Xbox (Unstable):
 
 Generate Microsoft Store package for Xbox (Stable): 
 
-[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package%20(Stable)/_apis/build/status/RA%20Generate%20Store%20Package%20(Stable)?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package%20(Stable)/_build/latest?definitionId=26&branchName=main)
+[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_apis/build/status/Nun-z.RetroArchStable?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_build/latest?definitionId=28&branchName=main)
 
 Generate dev mode package for Xbox:  
 
