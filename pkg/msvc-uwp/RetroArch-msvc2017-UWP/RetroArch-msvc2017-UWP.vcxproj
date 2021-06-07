@@ -240,7 +240,7 @@
     <AppInstallerUpdateFrequency>1</AppInstallerUpdateFrequency>
     <AppInstallerCheckForUpdateFrequency>OnApplicationRun</AppInstallerCheckForUpdateFrequency>
     <AppxBundle>Always</AppxBundle>
-    <PackageCertificateThumbprint>B86DAF5EC706754FEBABD0B011B0C4C3C2F73251</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>0BBFDBD9C447C9D649842B156AB88BB1C883023D</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
@@ -581,6 +581,7 @@
       <Link>%(Filename)%(Extension)</Link>
     </None>
     <None Include="RetroArch-msvc2017-UWP_TemporaryKey.pfx" />
+    <None Include="RetroCert.pfx" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='DebugANGLE|x64'">
     <None Include="ANGLE\$(Platform)\*.dll">
