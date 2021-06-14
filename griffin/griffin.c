@@ -192,7 +192,6 @@ ACHIEVEMENTS
 
 #include "../cheevos/cheevos.c"
 #include "../cheevos/cheevos_menu.c"
-#include "../cheevos/cheevos_memory.c"
 #include "../cheevos/cheevos_parser.c"
 
 #include "../deps/rcheevos/src/rcheevos/alloc.c"
@@ -204,6 +203,7 @@ ACHIEVEMENTS
 #include "../deps/rcheevos/src/rcheevos/lboard.c"
 #include "../deps/rcheevos/src/rcheevos/memref.c"
 #include "../deps/rcheevos/src/rcheevos/operand.c"
+#include "../deps/rcheevos/src/rcheevos/rc_libretro.c"
 #include "../deps/rcheevos/src/rcheevos/richpresence.c"
 #include "../deps/rcheevos/src/rcheevos/runtime.c"
 #include "../deps/rcheevos/src/rcheevos/runtime_progress.c"
@@ -971,7 +971,9 @@ MIDI
 /*============================================================
 DRIVERS
 ============================================================ */
-/*#include "../gfx/video_crt_switch.c" */
+#ifdef HAVE_CRTSWITCHRES
+#include "../gfx/video_crt_switch.c"
+#endif
 #include "../gfx/gfx_animation.c"
 #include "../gfx/gfx_display.c"
 #include "../gfx/gfx_thumbnail_path.c"
@@ -1254,26 +1256,6 @@ THREAD
 
 #if defined(XENON)
 #include "../thread/xenon_sdl_threads.c"
-#elif defined(PSP)
-#include "../deps/pthreads/platform/helper/tls-helper.c"
-#include "../deps/pthreads/platform/psp/psp_osal.c"
-#include "../deps/pthreads/pte_main.c"
-#include "../deps/pthreads/pte.c"
-#include "../deps/pthreads/pthread_attr.c"
-#include "../deps/pthreads/pthread_barrier.c"
-#include "../deps/pthreads/pthread_cond.c"
-#include "../deps/pthreads/pthread_condattr.c"
-#include "../deps/pthreads/pthread_get.c"
-#include "../deps/pthreads/pthread_key.c"
-#include "../deps/pthreads/pthread_mutex.c"
-#include "../deps/pthreads/pthread_mutexattr.c"
-#include "../deps/pthreads/pthread_rwlock.c"
-#include "../deps/pthreads/pthread_rwlockattr.c"
-#include "../deps/pthreads/pthread_set.c"
-#include "../deps/pthreads/pthread_spin.c"
-#include "../deps/pthreads/pthread.c"
-#include "../deps/pthreads/sched.c"
-#include "../deps/pthreads/sem.c"
 #endif
 
 #include "../libretro-common/rthreads/rthreads.c"

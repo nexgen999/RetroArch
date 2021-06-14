@@ -194,8 +194,8 @@ static int action_left_input_desc_kbd(unsigned type, const char *label,
    if (!settings)
       return 0;
 
-   user_idx = (type - MENU_SETTINGS_INPUT_DESC_KBD_BEGIN) / RARCH_FIRST_CUSTOM_BIND;
-   btn_idx  = (type - MENU_SETTINGS_INPUT_DESC_KBD_BEGIN) - RARCH_FIRST_CUSTOM_BIND * user_idx;
+   user_idx = (type - MENU_SETTINGS_INPUT_DESC_KBD_BEGIN) / RARCH_ANALOG_BIND_LIST_END;
+   btn_idx  = (type - MENU_SETTINGS_INPUT_DESC_KBD_BEGIN) - RARCH_ANALOG_BIND_LIST_END * user_idx;
 
    remap_id =
       settings->uints.input_keymapper_ids[user_idx][btn_idx];
@@ -1209,6 +1209,7 @@ static int menu_cbs_init_bind_left_compare_type(menu_file_list_cbs_t *cbs,
          case MENU_SETTING_GROUP:
          case MENU_SETTINGS_CORE_INFO_NONE:
          case MENU_SETTING_ACTION_FAVORITES_DIR:
+         case MENU_SETTING_ACTION_CORE_MANAGER_OPTIONS:
             if (  
                   string_ends_with_size(menu_label, "_tab",
                      strlen(menu_label), STRLEN_CONST("_tab"))
