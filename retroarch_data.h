@@ -1190,7 +1190,7 @@ static midi_driver_t midi_null = {
 };
 
 static midi_driver_t *midi_drivers[] = {
-#if defined(HAVE_ALSA) && !defined(HAVE_HAKCHI) && !defined(HAVE_SEGAM)
+#if defined(HAVE_ALSA) && !defined(HAVE_HAKCHI) && !defined(HAVE_SEGAM) && !defined(DINGUX)
    &midi_alsa,
 #endif
 #ifdef HAVE_WINMM
@@ -2373,7 +2373,8 @@ struct aspect_ratio_elem aspectratio_lut[ASPECT_RATIO_END] = {
    { 0.0f,            "Config"        },
    { 1.0f,            "Square pixel"  },
    { 1.0f,            "Core provided" },
-   { 0.0f,            "Custom"        }
+   { 0.0f,            "Custom"        },
+   { 1.3333f,         "Full" }
 };
 
 static gfx_api_gpu_map gpu_map[] = {

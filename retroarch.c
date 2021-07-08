@@ -26510,46 +26510,46 @@ void input_keyboard_event(bool down, unsigned code,
    }
 }
 
-static bool input_config_bind_map_get_valid(unsigned i)
+static bool input_config_bind_map_get_valid(unsigned bind_index)
 {
    const struct input_bind_map *keybind =
-      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(i);
+      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(bind_index);
    if (!keybind)
       return false;
    return keybind->valid;
 }
 
-unsigned input_config_bind_map_get_meta(unsigned i)
+unsigned input_config_bind_map_get_meta(unsigned bind_index)
 {
    const struct input_bind_map *keybind =
-      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(i);
+      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(bind_index);
    if (!keybind)
       return 0;
    return keybind->meta;
 }
 
-const char *input_config_bind_map_get_base(unsigned i)
+const char *input_config_bind_map_get_base(unsigned bind_index)
 {
    const struct input_bind_map *keybind =
-      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(i);
+      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(bind_index);
    if (!keybind)
       return NULL;
    return keybind->base;
 }
 
-const char *input_config_bind_map_get_desc(unsigned i)
+const char *input_config_bind_map_get_desc(unsigned bind_index)
 {
    const struct input_bind_map *keybind =
-      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(i);
+      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(bind_index);
    if (!keybind)
       return NULL;
    return msg_hash_to_str(keybind->desc);
 }
 
-uint8_t input_config_bind_map_get_retro_key(unsigned i)
+uint8_t input_config_bind_map_get_retro_key(unsigned bind_index)
 {
    const struct input_bind_map *keybind =
-      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(i);
+      (const struct input_bind_map*)INPUT_CONFIG_BIND_MAP_GET(bind_index);
    if (!keybind)
       return 0;
    return keybind->retro_key;
@@ -31379,6 +31379,21 @@ void video_driver_set_viewport_core(void)
          (float)geom->base_width / geom->base_height;
 }
 
+void video_driver_set_viewport_full()
+{
+   unsigned width = 0;
+   unsigned height = 0;   
+
+   video_driver_get_size(&width, &height);
+
+   if (width == 0 || height == 0)
+   {
+      return;
+   }
+
+   aspectratio_lut[ASPECT_RATIO_FULL].value = (float)width / (float)height;
+}
+
 void video_driver_reset_custom_viewport(void)
 {
    struct rarch_state *p_rarch      = &rarch_st;
@@ -31471,6 +31486,10 @@ void video_driver_set_aspect_ratio(void)
                &p_rarch->video_driver_av_info.geometry,
                settings->floats.video_aspect_ratio,
                settings->bools.video_aspect_ratio_auto);
+         break;
+
+      case ASPECT_RATIO_FULL:
+         video_driver_set_viewport_full();
          break;
 
       default:
@@ -31822,6 +31841,7 @@ void video_viewport_get_scaled_integer(struct video_viewport *vp,
    struct rarch_state     *p_rarch = &rarch_st;
    settings_t *settings            = p_rarch->configuration_settings;
    unsigned video_aspect_ratio_idx = settings->uints.video_aspect_ratio_idx;
+   bool overscale                  = settings->bools.video_scale_integer_overscale;
 
    if (video_aspect_ratio_idx == ASPECT_RATIO_CUSTOM)
    {
@@ -31864,8 +31884,15 @@ void video_viewport_get_scaled_integer(struct video_viewport *vp,
          if (keep_aspect)
          {
             /* X/Y scale must be same. */
-            unsigned max_scale = MIN(width / base_width,
-                  height / base_height);
+            unsigned max_scale = 1;
+
+            if (overscale)
+               max_scale = MIN((width / base_width) + !!(width % base_width),
+                     (height / base_height) + !!(height % base_height));
+            else
+               max_scale = MIN(width / base_width,
+                     height / base_height);
+
             padding_x          = width - base_width * max_scale;
             padding_y          = height - base_height * max_scale;
          }
@@ -38006,6 +38033,34 @@ static enum runloop_state runloop_check_state(
       }
    }
 #endif
+
+   /*
+   * If the Aspect Ratio is FULL then update the aspect ratio to the 
+   * current video driver aspect ratio (The full window)
+   * 
+   * TODO/FIXME 
+   *      Should possibly be refactored to have last width & driver width & height
+   *      only be done once when we are using an overlay OR using aspect ratio
+   *      full
+   */
+   if (settings->uints.video_aspect_ratio_idx == ASPECT_RATIO_FULL)
+   {
+      static unsigned last_width                     = 0;
+      static unsigned last_height                    = 0;
+      unsigned video_driver_width                    = p_rarch->video_driver_width;
+      unsigned video_driver_height                   = p_rarch->video_driver_height;
+
+      /* Check whether video aspect has changed */
+      if ((video_driver_width  != last_width) ||
+          (video_driver_height != last_height))
+      {
+         /* Update set aspect ratio so the full matches the current video width & height */
+         command_event(CMD_EVENT_VIDEO_SET_ASPECT_RATIO, NULL);
+
+         last_width  = video_driver_width;
+         last_height = video_driver_height;
+      }
+   }
 
    /* Check quit key */
    {
