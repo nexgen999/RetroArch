@@ -625,11 +625,6 @@
   <ItemGroup>
     <None Include="Package.StoreAssociation.xml" />
   </ItemGroup>
-  <ItemGroup>
-    <SDKReference Include="Microsoft.VCLibs.120, Version=14.0" />
-    <SDKReference Include="Microsoft.VCLibs.Desktop, Version=14.0" />
-    <SDKReference Include="Microsoft.VCLibs.Desktop.120, Version=14.0" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VSINSTALLDIR)\Common7\IDE\Extensions\Microsoft\VsGraphics\ImageContentTask.targets" />
