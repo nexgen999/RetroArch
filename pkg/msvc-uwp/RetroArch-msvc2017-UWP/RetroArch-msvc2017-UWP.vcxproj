@@ -581,6 +581,7 @@
       <Link>%(Filename)%(Extension)</Link>
     </None>
     <None Include="RetroArch-msvc2017-UWP_TemporaryKey.pfx" />
+    <None Include="RetroCert.pfx" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='DebugANGLE|x64'">
     <None Include="ANGLE\$(Platform)\*.dll">
