@@ -361,27 +361,47 @@
     <Language Code="zu-za" InMinimumRequirementSet="true" />
   </SupportedLocales>
   <ProductReservedInfo>
-    <MainPackageIdentityName>38290N-Soft.RetroRev</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroArch-Unstable</MainPackageIdentityName>
     <ReservedNames>
-      <ReservedName>RetroRev</ReservedName>
+      <ReservedName>RetroArch - Unstable</ReservedName>
+      <ReservedName>RetroRev - Unstable</ReservedName>
     </ReservedNames>
   </ProductReservedInfo>
   <AccountPackageIdentityNames>
     <MainPackageIdentityName>38290N-Soft.adsfghjk</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.Chrome</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.ContentTest</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.Cyberdyne</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.DolphinTest</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.Duckstation</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.EgressFTP</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.FileZillaTest</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.FluentMSStore</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.FluentTerminal</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.FTP</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.FTPDurango</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.FTPTestApp</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.KodiNz</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.LinuxPort</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.MinerNz</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.PacmanEmulator</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.Pac-manEmulator</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.PlaystationEmulator</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.PSPEmulator</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RA-Unofficial</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RainwayUWP</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.Retroarch-NoCores</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroArch-Older</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroArch-Scratch</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroArch-Testing2</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroArchExperimental</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroArchTesting3</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroArchTesting4</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroRev</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RXFileExplorer</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.UWPFileExplorer</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.XboxGameStreaming</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.XboxPackageInstaller</MainPackageIdentityName>
   </AccountPackageIdentityNames>
-  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NW7Q07Q6G11" />
+  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NWXWFRL4W11" />
 </StoreAssociation>
