@@ -363,8 +363,7 @@
   <ProductReservedInfo>
     <MainPackageIdentityName>38290N-Soft.RetroArch-Unstable</MainPackageIdentityName>
     <ReservedNames>
-      <ReservedName>RetroArch - Unstable</ReservedName>
-      <ReservedName>RetroRev - Unstable</ReservedName>
+      <ReservedName>RetroRevolutions - Auto-update</ReservedName>
     </ReservedNames>
   </ProductReservedInfo>
   <AccountPackageIdentityNames>
@@ -403,5 +402,5 @@
     <MainPackageIdentityName>38290N-Soft.XboxGameStreaming</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.XboxPackageInstaller</MainPackageIdentityName>
   </AccountPackageIdentityNames>
-  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NWXWFRL4W11" />
+  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9P5HRMGM4P9B" />
 </StoreAssociation>
