@@ -924,6 +924,10 @@ static void *d3d12_gfx_init(const video_info_t* video,
    if (string_is_equal(settings->arrays.input_driver, "dinput"))
       wndclass.lpfnWndProc = wnd_proc_d3d_dinput;
 #endif
+#ifdef HAVE_WINRAWINPUT
+   if (string_is_equal(settings->arrays.input_driver, "raw"))
+      wndclass.lpfnWndProc = wnd_proc_d3d_winraw;
+#endif
 #ifdef HAVE_WINDOW
    win32_window_init(&wndclass, true, NULL);
 #endif
