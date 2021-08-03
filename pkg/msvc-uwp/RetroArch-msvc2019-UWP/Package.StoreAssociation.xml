@@ -361,9 +361,9 @@
     <Language Code="zu-za" InMinimumRequirementSet="true" />
   </SupportedLocales>
   <ProductReservedInfo>
-    <MainPackageIdentityName>38290N-Soft.RetroRevivified</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroRevived-Auto-update</MainPackageIdentityName>
     <ReservedNames>
-      <ReservedName>RetroRevivified</ReservedName>
+      <ReservedName>RetroRevived - Auto-update</ReservedName>
     </ReservedNames>
   </ProductReservedInfo>
   <AccountPackageIdentityNames>
@@ -434,7 +434,7 @@
     <MainPackageIdentityName>38290N-Soft.RetroArchTesting4</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroRev</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroRevived</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevived-Auto-update</MainPackageIdentityName>
+    <MainPackageIdentityName>38290N-Soft.RetroRevivified</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroRevivified-AutomatedPackages</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroRevolt</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.RetroRevolt-Auto-update</MainPackageIdentityName>
@@ -461,5 +461,5 @@
     <MainPackageIdentityName>38290N-Soft.XboxPackageInstaller</MainPackageIdentityName>
     <MainPackageIdentityName>38290N-Soft.XboxScreenRecorder</MainPackageIdentityName>
   </AccountPackageIdentityNames>
-  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NJBZG0JR6MP" />
+  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9N7PNGGC2X8H" />
 </StoreAssociation>
