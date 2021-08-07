@@ -232,7 +232,7 @@
     <AppInstallerUpdateFrequency>1</AppInstallerUpdateFrequency>
     <AppInstallerCheckForUpdateFrequency>OnApplicationRun</AppInstallerCheckForUpdateFrequency>
     <AppxBundle>Always</AppxBundle>
-    <PackageCertificateThumbprint>8bf12070f50a7d2e5fcecc5a83062b6c101c34a6</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>0bbfdbd9c447c9d649842b156ab88bb1c883023d</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
