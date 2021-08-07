@@ -3,6 +3,9 @@
 - CONTENT INFORMATION: Show content info label+path rows always
 - DUMMY CORE: Skip state_manager_event_{deinit/init} when core type is dummy, should skip warning spam 'Implementation uses threaded audio. Cannot use rewind..' when using rewind
 - INPUT/UDEV: Limit udev device scan to subsystem 'input'
+- INPUT/WAYLAND: Fixes a bug where the first player's mouse, pointer, and lightgun are echoed to the other ports. Now, those other ports correctly report zero. In the future support for multiple mouselike devices will need to be added, which is a bigger project
+- INPUT/WAYLAND: The driver now respects keyboard_mapping_blocked
+- INPUT/WAYLAND: When possible, deprecated lightgun defines are replaced with the new ones. The coordinates are still using the old relative callbacks
 - LIBNX/SWITCH: Fix poll missing for controller 2-8
 - LIBNX/SWITCH: Fix layout not applied correctly and hangs when splitting joycons
 - DATABASE/EXPLORE: Fix CRC32 reading in explore menu
@@ -11,7 +14,9 @@
 - MOUSE: Change default mouse index to port index
 - MOUSE: Friendly names for mice where available
 - OSX: Fix some memory leaks
+- OSX: Fix controller duplication bug
 - PS2: Implement alpha for the video driver
+- RETROFW: Initial port
 - WINRAW: Trigger joypad driver reinit on DEVICECHANGE - avoids fullscreen toggle
 - WINRAW: Alt sticky fix
 - WINRAW: Prevent Alt getting stuck when Alt-Tabbing
