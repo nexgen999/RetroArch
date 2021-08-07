@@ -702,6 +702,8 @@ static void iohidmanager_hid_device_add_device(
          kCFAllocatorDefault,(CFIndex)count,elements_raw);
    range        = CFRangeMake(0,count);
 
+   CFRelease(elements_raw);
+
    CFArraySortValues(elements,
          range, iohidmanager_sort_elements, NULL);
 
@@ -861,6 +863,8 @@ static void iohidmanager_hid_device_add_device(
       }
    }
 
+   CFRelease(elements);
+
    /* take care of buttons/axes with duplicate 'use' values */
    for (i = 0; i < 11; i++)
    {
@@ -1006,6 +1010,7 @@ static int iohidmanager_hid_manager_set_device_matching(
 	CFIndex num_devices          = CFSetGetCount(set);
 	IOHIDDeviceRef *device_array = (IOHIDDeviceRef*)calloc(num_devices, sizeof(IOHIDDeviceRef));
 	CFSetGetValues(set, (const void **) device_array);
+        CFRelease(set);
 
 	/* re order device by location id */
 	typedef struct hid_list
