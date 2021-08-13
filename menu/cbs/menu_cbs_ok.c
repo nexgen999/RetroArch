@@ -81,9 +81,9 @@
 
 #ifdef HAVE_NETWORKING
 #include "../../network/netplay/netplay.h"
-#ifdef HAVE_NETPLAYDISCOVERY
+/* TODO/FIXME - we can't ifdef netplay_discovery.h because of these pesky globals 'netplay_room_count' and 'netplay_room_list' - let's please get rid of them */
 #include "../../network/netplay/netplay_discovery.h"
-#endif
+
 #include "../../wifi/wifi_driver.h"
 #endif
 
@@ -94,6 +94,10 @@
 #if defined(ANDROID)
 #include "../../file_path_special.h"
 #include "../../play_feature_delivery/play_feature_delivery.h"
+#endif
+
+#if defined(HAVE_LAKKA) || defined(HAVE_LIBNX)
+#include "../../switch_performance_profiles.h"
 #endif
 
 enum
@@ -6206,7 +6210,7 @@ int action_cb_push_dropdown_item_resolution(const char *path,
       settings->uints.video_fullscreen_x = width;
       settings->uints.video_fullscreen_y = height;
 
-      return 1;
+      action_cancel_pop_default(NULL, NULL, 0, 0);
    }
 
    return 0;
@@ -7550,9 +7554,11 @@ static int menu_cbs_init_bind_ok_compare_label(menu_file_list_cbs_t *cbs,
          {MENU_ENUM_LABEL_VIDEO_SHADER_PRESET_REMOVE_CORE,     action_ok_shader_preset_remove_core},
          {MENU_ENUM_LABEL_VIDEO_SHADER_PRESET_REMOVE_PARENT,   action_ok_shader_preset_remove_parent},
          {MENU_ENUM_LABEL_VIDEO_SHADER_PRESET_REMOVE_GAME,     action_ok_shader_preset_remove_game},
+#ifdef HAVE_NETWORKING
          {MENU_ENUM_LABEL_UPDATE_GLSL_SHADERS,                 action_ok_update_shaders_glsl},
          {MENU_ENUM_LABEL_UPDATE_CG_SHADERS,                   action_ok_update_shaders_cg},
          {MENU_ENUM_LABEL_UPDATE_SLANG_SHADERS,                action_ok_update_shaders_slang},
+#endif
 #endif
 #ifdef HAVE_AUDIOMIXER
          {MENU_ENUM_LABEL_AUDIO_MIXER_SETTINGS,                action_ok_push_audio_mixer_settings_list},

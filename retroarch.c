@@ -117,6 +117,9 @@
 
 #ifdef HAVE_LIBNX
 #include <switch.h>
+#endif
+
+#if defined(HAVE_LAKKA) || defined(HAVE_LIBNX)
 #include "switch_performance_profiles.h"
 #endif
 
@@ -2625,8 +2628,8 @@ int generic_menu_entry_action(
             p_rarch->accessibility_enabled)
          && !menu_input_dialog_get_display_kb())
    {
-      char current_label[255];
-      char current_value[255];
+      char current_label[128];
+      char current_value[128];
       char title_name[255];
       char speak_string[512];
 
@@ -12980,40 +12983,47 @@ static void command_event_save_current_config(
       struct rarch_state *p_rarch,
       enum override_type type)
 {
-   char msg[128];
-
-   msg[0] = '\0';
 
    switch (type)
    {
       case OVERRIDE_NONE:
-         if (path_is_empty(RARCH_PATH_CONFIG))
-            strcpy_literal(msg, "[Config]: Config directory not set, cannot save configuration.");
-         else
-            command_event_save_config(path_get(RARCH_PATH_CONFIG), msg, sizeof(msg));
+         {
+            if (path_is_empty(RARCH_PATH_CONFIG))
+            {
+               char msg[128];
+               msg[0] = '\0';
+               strcpy_literal(msg, "[Config]: Config directory not set, cannot save configuration.");
+               runloop_msg_queue_push(msg, 1, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
+            }
+            else
+            {
+               char msg[256];
+               msg[0] = '\0';
+               command_event_save_config(path_get(RARCH_PATH_CONFIG), msg, sizeof(msg));
+               runloop_msg_queue_push(msg, 1, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
+            }
+         }
          break;
       case OVERRIDE_GAME:
       case OVERRIDE_CORE:
       case OVERRIDE_CONTENT_DIR:
-         if (config_save_overrides(type, &runloop_state.system))
          {
-            strlcpy(msg, msg_hash_to_str(MSG_OVERRIDES_SAVED_SUCCESSFULLY), sizeof(msg));
+            char msg[128];
+            msg[0] = '\0';
+            if (config_save_overrides(type, &runloop_state.system))
+            {
+               strlcpy(msg, msg_hash_to_str(MSG_OVERRIDES_SAVED_SUCCESSFULLY), sizeof(msg));
+               /* set overrides to active so the original config can be
+                  restored after closing content */
+               runloop_state.overrides_active = true;
+            }
+            else
+               strlcpy(msg, msg_hash_to_str(MSG_OVERRIDES_ERROR_SAVING), sizeof(msg));
             RARCH_LOG("[Config - Overrides]: %s\n", msg);
-
-            /* set overrides to active so the original config can be
-               restored after closing content */
-            runloop_state.overrides_active = true;
-         }
-         else
-         {
-            strlcpy(msg, msg_hash_to_str(MSG_OVERRIDES_ERROR_SAVING), sizeof(msg));
-            RARCH_ERR("[Config - Overrides]: %s\n", msg);
+            runloop_msg_queue_push(msg, 1, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
          }
          break;
    }
-
-   if (!string_is_empty(msg))
-      runloop_msg_queue_push(msg, 1, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
 }
 #endif
 
@@ -15232,9 +15242,12 @@ bool command_event(enum event_command cmd, void *data)
       case CMD_EVENT_AI_SERVICE_CALL:
          {
 #ifdef HAVE_TRANSLATE
+#ifdef HAVE_ACCESSIBILITY
             bool accessibility_enable = settings->bools.accessibility_enable;
             unsigned accessibility_narrator_speech_speed = settings->uints.accessibility_narrator_speech_speed;
+#endif
             unsigned ai_service_mode  = settings->uints.ai_service_mode;
+
             if (ai_service_mode == 1 && is_ai_service_speech_running())
             {
 #ifdef HAVE_AUDIOMIXER
@@ -16588,6 +16601,8 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
          {
             const struct retro_core_options_v2 *options_v2 =
                   (const struct retro_core_options_v2 *)data;
+            bool categories_enabled                        =
+                  settings->bools.core_option_category_enable;
 
             if (runloop_state.core_options)
                retroarch_deinit_core_options(p_rarch,
@@ -16595,6 +16610,12 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
 
             if (options_v2)
                rarch_init_core_options(p_rarch, options_v2);
+
+            /* Return value does not indicate success.
+             * Callback returns 'true' if core option
+             * categories are supported/enabled,
+             * otherwise 'false'. */
+            return categories_enabled;
          }
          break;
 
@@ -16607,6 +16628,8 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
             struct retro_core_options_v2 *options_v2 =
                   core_option_manager_convert_v2_intl(
                         (const struct retro_core_options_v2_intl*)data);
+            bool categories_enabled                  =
+                  settings->bools.core_option_category_enable;
 
             if (runloop_state.core_options)
                retroarch_deinit_core_options(p_rarch,
@@ -16620,6 +16643,12 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
                /* Clean up */
                core_option_manager_free_converted(options_v2);
             }
+
+            /* Return value does not indicate success.
+             * Callback returns 'true' if core option
+             * categories are supported/enabled,
+             * otherwise 'false'. */
+            return categories_enabled;
          }
          break;
 
@@ -35997,12 +36026,14 @@ static void rarch_init_core_options(
       struct rarch_state *p_rarch,
       const struct retro_core_options_v2 *options_v2)
 {
+   settings_t *settings    = p_rarch->configuration_settings;
+   bool categories_enabled = settings->bools.core_option_category_enable;
    char options_path[PATH_MAX_LENGTH];
    char src_options_path[PATH_MAX_LENGTH];
 
    /* Ensure these are NULL-terminated */
-   options_path[0]                = '\0';
-   src_options_path[0]            = '\0';
+   options_path[0]     = '\0';
+   src_options_path[0] = '\0';
 
    /* Get core options file path */
    rarch_init_core_options_path(p_rarch,
@@ -36012,7 +36043,8 @@ static void rarch_init_core_options(
    if (!string_is_empty(options_path))
       runloop_state.core_options =
             core_option_manager_new(options_path,
-                  src_options_path, options_v2);
+                  src_options_path, options_v2,
+                  categories_enabled);
 }
 
 void retroarch_init_task_queue(void)

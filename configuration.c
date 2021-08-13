@@ -45,7 +45,6 @@
 #include "paths.h"
 #include "retroarch.h"
 #include "verbosity.h"
-#include "lakka.h"
 
 #include "gfx/gfx_animation.h"
 
@@ -56,6 +55,12 @@
 
 #if defined(__WINRT__) || defined(WINAPI_FAMILY) && WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
 #include "uwp/uwp_func.h"
+#endif
+
+#include "lakka.h"
+
+#if defined(HAVE_LAKKA) || defined(HAVE_LIBNX)
+#include "switch_performance_profiles.h"
 #endif
 
 enum video_driver_enum
@@ -1518,6 +1523,7 @@ static struct config_bool_setting *populate_settings_bool(
    SETTING_BOOL("input_descriptor_hide_unbound", &settings->bools.input_descriptor_hide_unbound, true, input_descriptor_hide_unbound, false);
    SETTING_BOOL("load_dummy_on_core_shutdown",   &settings->bools.load_dummy_on_core_shutdown, true, DEFAULT_LOAD_DUMMY_ON_CORE_SHUTDOWN, false);
    SETTING_BOOL("check_firmware_before_loading", &settings->bools.check_firmware_before_loading, true, DEFAULT_CHECK_FIRMWARE_BEFORE_LOADING, false);
+   SETTING_BOOL("core_option_category_enable",   &settings->bools.core_option_category_enable, true, DEFAULT_CORE_OPTION_CATEGORY_ENABLE, false);
 #if defined(__WINRT__) || defined(WINAPI_FAMILY) && WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
    SETTING_BOOL("core_info_cache_enable",        &settings->bools.core_info_cache_enable, false, DEFAULT_CORE_INFO_CACHE_ENABLE, false);
 #else
