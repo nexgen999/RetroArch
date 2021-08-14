@@ -30054,11 +30054,12 @@ static bool video_driver_init_internal(
      )
 {
    video_info_t video;
+   struct retro_game_geometry geom;
    unsigned max_dim, scale, width, height;
    video_viewport_t *custom_vp            = NULL;
    input_driver_t *tmp                    = NULL;
    static uint16_t dummy_pixels[32]       = {0};
-   struct retro_game_geometry *geom       = &p_rarch->video_driver_av_info.geometry;
+   struct retro_game_geometry *core_geom  = &p_rarch->video_driver_av_info.geometry;
    const enum retro_pixel_format
       video_driver_pix_fmt                = p_rarch->video_driver_pix_fmt;
 #ifdef HAVE_VIDEO_FILTER
@@ -30068,7 +30069,15 @@ static bool video_driver_init_internal(
       video_driver_init_filter(video_driver_pix_fmt, settings);
 #endif
 
-   max_dim   = MAX(geom->max_width, geom->max_height);
+   geom.base_width                        = core_geom->base_width;
+   geom.base_height                       = core_geom->base_height;
+   geom.max_width                         = core_geom->max_width;
+   geom.max_height                        = core_geom->max_height;
+   geom.aspect_ratio                      = core_geom->aspect_ratio;
+
+   RARCH_LOG("[Video]: AV geometry base width: %d, base_height: %d\n", geom.base_width, geom.base_height);
+   RARCH_LOG("[Video]: AV geometry max_width: %d, max_height: %d, aspect: %.2f\n", geom.max_width, geom.max_height, geom.aspect_ratio);
+   max_dim   = MAX(geom.max_width, geom.max_height);
    scale     = next_pow2(max_dim) / RARCH_SCALE_BASE;
    scale     = MAX(scale, 1);
 
@@ -30077,10 +30086,13 @@ static bool video_driver_init_internal(
       scale  = p_rarch->video_driver_state_scale;
 #endif
 
+   RARCH_LOG("[Video]: Video max dimensions: %d, windowed scale: %d\n",
+      max_dim, scale);
+
    /* Update core-dependent aspect ratio values. */
-   video_driver_set_viewport_square_pixel(geom);
+   video_driver_set_viewport_square_pixel(&geom);
    video_driver_set_viewport_core();
-   video_driver_set_viewport_config(geom,
+   video_driver_set_viewport_config(&geom,
          settings->floats.video_aspect_ratio,
          settings->bools.video_aspect_ratio_auto);
 
@@ -30105,10 +30117,11 @@ static bool video_driver_init_internal(
             aspectratio_lut[new_aspect_idx].value);
    }
 
-   if (settings->bools.video_fullscreen|| p_rarch->rarch_force_fullscreen)
+   if (settings->bools.video_fullscreen || p_rarch->rarch_force_fullscreen)
    {
       width  = settings->uints.video_fullscreen_x;
       height = settings->uints.video_fullscreen_y;
+      RARCH_LOG("[Video]: Set width and height to fullscreen values [%dx%d]\n", width, height);
    }
    else
    {
@@ -30119,6 +30132,7 @@ static bool video_driver_init_internal(
       {
          width  = settings->uints.window_position_width;
          height = settings->uints.window_position_height;
+	 RARCH_LOG("[Video]: Set width and height based on window position width [%dx%d]\n", width, height);
       }
       else
       {
@@ -30127,12 +30141,14 @@ static bool video_driver_init_internal(
          {
             /* Do rounding here to simplify integer scale correctness. */
             unsigned base_width =
-               roundf(geom->base_height * p_rarch->video_driver_aspect_ratio);
+               roundf(geom.base_height * p_rarch->video_driver_aspect_ratio);
             width  = roundf(base_width * video_scale);
+            RARCH_LOG("[Video]: Force video aspect\n");
          }
          else
-            width  = roundf(geom->base_width   * video_scale);
-         height    = roundf(geom->base_height  * video_scale);
+            width  = roundf(geom.base_width   * video_scale);
+         height    = roundf(geom.base_height  * video_scale);
+	 RARCH_LOG("[Video]: Set width and height based on window position width [%dx%d]\n", width, height);
       }
    }
 
@@ -30141,13 +30157,11 @@ static bool video_driver_init_internal(
    {
       width = settings->uints.video_fullscreen_x != 0 ? settings->uints.video_fullscreen_x : 3840;
       height = settings->uints.video_fullscreen_y != 0 ? settings->uints.video_fullscreen_y : 2160;
+      RARCH_LOG("[Video]: Force resolution [%dx%d]\n", width, height);
    }
 #endif
 
-   if (width && height)
-      RARCH_LOG("[Video]: Video @ %ux%u\n", width, height);
-   else
-      RARCH_LOG("[Video]: Video @ fullscreen\n");
+   RARCH_LOG("[Video]: Video @ %ux%u\n", width, height);
 
    p_rarch->video_driver_display_type     = RARCH_DISPLAY_NONE;
    p_rarch->video_driver_display          = 0;
