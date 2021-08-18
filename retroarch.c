@@ -13521,6 +13521,12 @@ static void retroarch_fastmotion_override_free(struct rarch_state *p_rarch,
       retroarch_set_frame_limit(p_rarch, fastforward_ratio);
 }
 
+static void retroarch_core_options_callback_free(runloop_state_t *p_runloop)
+{
+   /* Only a single core options callback is used at present */
+   p_runloop->core_options_callback.update_display = NULL;
+}
+
 static void retroarch_system_info_free(struct rarch_state *p_rarch)
 {
    rarch_system_info_t        *sys_info   = &runloop_state.system;
@@ -16667,6 +16673,23 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
          }
          break;
 
+      case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK:
+         RARCH_DBG("[Environ]: RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK.\n");
+
+         {
+            const struct retro_core_options_update_display_callback
+                  *update_display_callback =
+                        (const struct retro_core_options_update_display_callback*)data;
+
+            if (update_display_callback &&
+                update_display_callback->callback)
+               runloop_state.core_options_callback.update_display =
+                     update_display_callback->callback;
+            else
+               runloop_state.core_options_callback.update_display = NULL;
+         }
+         break;
+
       case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
          RARCH_LOG("[Environ]: GET_MESSAGE_INTERFACE_VERSION.\n");
          /* Current API version is 1 */
@@ -18463,6 +18486,7 @@ static void uninit_libretro_symbols(
    retroarch_audio_buffer_status_free(p_rarch);
    retroarch_game_focus_free(p_rarch);
    retroarch_fastmotion_override_free(p_rarch, &runloop_state);
+   retroarch_core_options_callback_free(&runloop_state);
    p_rarch->camera_driver_active      = false;
    p_rarch->location_driver_active    = false;
 
@@ -34623,6 +34647,22 @@ static bool retroarch_parse_input_and_config(
                retroarch_override_setting_set(
                      RARCH_OVERRIDE_SETTING_STATE_PATH, NULL);
                break;
+            case 'v':
+               verbosity_enable();
+               retroarch_override_setting_set(
+                     RARCH_OVERRIDE_SETTING_VERBOSITY, NULL);
+               break;
+            case RA_OPT_LOG_FILE:
+               /* Enable 'log to file' */
+               configuration_set_bool(p_rarch->configuration_settings,
+                     p_rarch->configuration_settings->bools.log_to_file, true);
+
+               retroarch_override_setting_set(
+                     RARCH_OVERRIDE_SETTING_LOG_TO_FILE, NULL);
+
+               /* Cache log file path override */
+               rarch_log_file_set_override(optarg);
+               break;
 
             /* Must handle '?' otherwise you get an infinite loop */
             case '?':
@@ -34633,6 +34673,13 @@ static bool retroarch_parse_input_and_config(
          }
       }
    }
+   verbosity_enabled = verbosity_is_enabled();
+   /* Enable logging to file if verbosity and log-file arguments were passed.
+    * RARCH_OVERRIDE_SETTING_LOG_TO_FILE is set by the RA_OPT_LOG_FILE case above
+    * The parameters passed to rarch_log_file_init are hardcoded as the config
+    * has not yet been initialized at this point. */
+   if (verbosity_enabled && retroarch_override_setting_is_set(RARCH_OVERRIDE_SETTING_LOG_TO_FILE, NULL))
+      rarch_log_file_init(true,false,'\0');
 
    /* Flush out some states that could have been set
     * by core environment variables. */
@@ -34652,6 +34699,15 @@ static bool retroarch_parse_input_and_config(
       config_load(&p_rarch->g_extern);
    }
 
+   verbosity_enabled = verbosity_is_enabled();
+   /* Init logging after config load only if not overridden by command line argument. 
+    * This handles when logging is set in the config but not via the --log-file option. */
+   if (verbosity_enabled && !retroarch_override_setting_is_set(RARCH_OVERRIDE_SETTING_LOG_TO_FILE, NULL))
+      rarch_log_file_init(
+            p_rarch->configuration_settings->bools.log_to_file,
+            p_rarch->configuration_settings->bools.log_to_file_timestamp,
+            p_rarch->configuration_settings->paths.log_dir);
+            
    /* Second pass: All other arguments override the config file */
    optind = 1;
 
@@ -34716,12 +34772,6 @@ static bool retroarch_parse_input_and_config(
 
             case 'f':
                p_rarch->rarch_force_fullscreen = true;
-               break;
-
-            case 'v':
-               verbosity_enable();
-               retroarch_override_setting_set(
-                     RARCH_OVERRIDE_SETTING_VERBOSITY, NULL);
                break;
 
             case 'N':
@@ -35028,18 +35078,6 @@ static bool retroarch_parse_input_and_config(
                retroarch_print_version();
                exit(0);
 
-            case RA_OPT_LOG_FILE:
-               /* Enable 'log to file' */
-               configuration_set_bool(p_rarch->configuration_settings,
-                     p_rarch->configuration_settings->bools.log_to_file, true);
-
-               retroarch_override_setting_set(
-                     RARCH_OVERRIDE_SETTING_LOG_TO_FILE, NULL);
-
-               /* Cache log file path override */
-               rarch_log_file_set_override(optarg);
-               break;
-
             case 'h':
 #ifdef HAVE_CONFIGFILE
             case 'c':
@@ -35047,6 +35085,8 @@ static bool retroarch_parse_input_and_config(
 #endif
             case 's':
             case 'S':
+            case 'v':
+            case RA_OPT_LOG_FILE:
                break; /* Handled in the first pass */
 
             case '?':
@@ -35066,14 +35106,6 @@ static bool retroarch_parse_input_and_config(
          }
       }
    }
-
-   verbosity_enabled = verbosity_is_enabled();
-
-   if (verbosity_enabled)
-      rarch_log_file_init(
-            p_rarch->configuration_settings->bools.log_to_file,
-            p_rarch->configuration_settings->bools.log_to_file_timestamp,
-            p_rarch->configuration_settings->paths.log_dir);
 
 #ifdef HAVE_GIT_VERSION
    RARCH_LOG("RetroArch %s (Git %s)\n",
@@ -36257,6 +36289,23 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
             *coreopts = runloop_state.core_options;
          }
          break;
+      case RARCH_CTL_CORE_OPTION_UPDATE_DISPLAY:
+         if (runloop_state.core_options &&
+             runloop_state.core_options_callback.update_display)
+         {
+            /* Note: The update_display() callback may read
+             * core option values via RETRO_ENVIRONMENT_GET_VARIABLE.
+             * This will reset the 'options updated' flag.
+             * We therefore have to cache the current 'options updated'
+             * state and restore it after the update_display() function
+             * returns */
+            bool values_updated  = runloop_state.core_options->updated;
+            bool display_updated = runloop_state.core_options_callback.update_display();
+
+            runloop_state.core_options->updated = values_updated;
+            return display_updated;
+         }
+         return false;
 #ifdef HAVE_CONFIGFILE
       case RARCH_CTL_IS_OVERRIDES_ACTIVE:
          return runloop_state.overrides_active;
@@ -36325,6 +36374,7 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
          retroarch_audio_buffer_status_free(p_rarch);
          retroarch_game_focus_free(p_rarch);
          retroarch_fastmotion_override_free(p_rarch, &runloop_state);
+         retroarch_core_options_callback_free(&runloop_state);
          memset(&p_rarch->input_driver_analog_requested, 0,
                sizeof(p_rarch->input_driver_analog_requested));
          break;
@@ -36360,7 +36410,8 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
             unsigned *idx = (unsigned*)data;
             if (!idx || !runloop_state.core_options)
                return false;
-            core_option_manager_adjust_val(runloop_state.core_options, *idx, -1);
+            core_option_manager_adjust_val(runloop_state.core_options,
+                  *idx, -1, true);
          }
          break;
       case RARCH_CTL_CORE_OPTION_NEXT:
@@ -36372,7 +36423,8 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
             unsigned* idx = (unsigned*)data;
             if (!idx || !runloop_state.core_options)
                return false;
-            core_option_manager_adjust_val(runloop_state.core_options, *idx, 1);
+            core_option_manager_adjust_val(runloop_state.core_options,
+                  *idx, 1, true);
          }
          break;
 
