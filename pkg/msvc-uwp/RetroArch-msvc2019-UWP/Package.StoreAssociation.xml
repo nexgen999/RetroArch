@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <StoreAssociation xmlns="http://schemas.microsoft.com/appx/2010/storeassociation">
-  <Publisher>CN=DBEECBAB-E09C-4284-B5EA-80CDCB791506</Publisher>
-  <PublisherDisplayName>libretro</PublisherDisplayName>
+  <Publisher>CN=27C1A410-87F9-44DF-A25D-81D8568AC4C1</Publisher>
+  <PublisherDisplayName>Hidden Solutions</PublisherDisplayName>
   <DeveloperAccountType>MSA</DeveloperAccountType>
   <GeneratePackageHash>http://www.w3.org/2001/04/xmlenc#sha256</GeneratePackageHash>
   <SupportedLocales>
@@ -361,105 +361,16 @@
     <Language Code="zu-za" InMinimumRequirementSet="true" />
   </SupportedLocales>
   <ProductReservedInfo>
-    <MainPackageIdentityName>38290N-Soft.RetroReverberation-Auto-update</MainPackageIdentityName>
+    <MainPackageIdentityName>65354HiddenSolutions.RevRetroUnstable</MainPackageIdentityName>
     <ReservedNames>
-      <ReservedName>RetroReverberation - Auto-update</ReservedName>
+      <ReservedName>RevRetro Unstable</ReservedName>
     </ReservedNames>
   </ProductReservedInfo>
   <AccountPackageIdentityNames>
-    <MainPackageIdentityName>38290N-Soft.11ZQOIHF0MWWP6I4</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.2J074M6NPW89DF8A</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.32PHTP6BRMDG7GTZ</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.3S65TV6LNTK4LZNM</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.42Test42</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.442Test42</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.5E4DVBFDJZ8R2LX3</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.5NMW40PWQAUSBXO2</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.A0P7FL74U6NRZKD9</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.adsfghjk</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.C5QGVZYL43BEYG03</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Chrome</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.ContentTest</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Cyberdyne</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.DolphinTest</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Duckstation</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.E17FM4YF0403GKZB</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.EgressFTP</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FileZillaTest</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FluentMSStore</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FluentTerminal</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FTP</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FTPAppUWP</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FTPDurango</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.FTPTestApp</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.GAIN1KFE2YTAHQ29</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.GD16TPDDDB6S8YWN</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.H0G5A0IEAJLMIB6G</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.HWYGLGSJ5815DP3H</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.KodiNz</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.KommanderFileManager</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.KommanderUWP</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.LinuxPort</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.lknbvtcfxdfsgvhjkl</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.lknbvtcsegfxdfsgvhjkl</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.MegaUWPFileManager</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.MinerNz</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.NewAppTest9876543543</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.NewAppTest9876543543adsaefs</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.NewTest2</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.NewTest92</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.NNWI1UH1GUVCZOZR</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.OldTest</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.OldTest22</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PacmanEmulator</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Pac-manEmulator</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PlayStationEmulation</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PlaystationEmulator</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PPSSPPEmulator</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PS1Emulator</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PSPEmulation</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PSPEmulator</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.PSPEmulators</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RA-Unofficial</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RainwayUnofficial</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RainwayUWP</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RainwayUWPTest</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Retroarch-NoCores</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArch-Older</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArch-Scratch</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArch-Testing2</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArch-Unstable</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArchExperimental</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArchTesting3</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroArchTesting4</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRev</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevived</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevivified</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevivified-AutomatedPackages</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevolt</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevolt-Auto-update</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevolutions</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevolutions-Auto-update</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RetroRevs</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.RXFileExplorer</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.SQWAQNVLFN97ZWEB</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Testing427</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.Testing428</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.TestingNativeAssembly</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.TestingTesingTesting</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.TestNativeAssembly2</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.TMVKT2MOTZL5PSUN</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.TTester42</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.TTestTestTest</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.UWPFileExplorer</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.UWPFTPApplication</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.UWPFTPEgress</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.UWPFTPServer</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.UWPShoppingApp</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.WVZEXCET1WJAVZXM</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.XboxGameStreaming</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.XboxPackageInstaller</MainPackageIdentityName>
-    <MainPackageIdentityName>38290N-Soft.XboxScreenRecorder</MainPackageIdentityName>
+    <MainPackageIdentityName>65354HiddenSolutions.FFTTPP</MainPackageIdentityName>
+    <MainPackageIdentityName>65354HiddenSolutions.PPSSPPSS</MainPackageIdentityName>
+    <MainPackageIdentityName>65354HiddenSolutions.PSRetro</MainPackageIdentityName>
+    <MainPackageIdentityName>65354HiddenSolutions.RevRetro</MainPackageIdentityName>
   </AccountPackageIdentityNames>
-  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9N7PNGGC2X8H" />
+  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NF4DWBT0FTW" />
 </StoreAssociation>
