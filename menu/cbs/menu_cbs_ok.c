@@ -6206,8 +6206,21 @@ int action_cb_push_dropdown_item_resolution(const char *path,
          refreshrate, (float)refreshrate, 0, 0, 0, 0))
    {
       settings_t *settings = config_get_ptr();
+#ifdef _MSC_VER
+      float num            = refreshrate / 60.0f;
+      unsigned refresh_mod = num > 0 ? (unsigned)(floorf(num + 0.5f)) : (unsigned)(ceilf(num - 0.5f));
+#else
+      unsigned refresh_mod = lroundf(refreshrate / 60.0f);
+#endif
+      float refresh_exact  = refreshrate;
 
-      video_monitor_set_refresh_rate((float)refreshrate);
+      /* 59 Hz is an inaccurate representation of the real value (59.94).
+       * And since we at this point only have the integer to work with,
+       * the exact float needs to be calculated for 'video_refresh_rate' */
+      if (refreshrate == (60.0f * refresh_mod) - 1)
+         refresh_exact = 59.94f * refresh_mod;
+
+      video_monitor_set_refresh_rate(refresh_exact);
 
       settings->uints.video_fullscreen_x = width;
       settings->uints.video_fullscreen_y = height;
