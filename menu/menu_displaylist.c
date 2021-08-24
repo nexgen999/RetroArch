@@ -6157,7 +6157,7 @@ unsigned menu_displaylist_build_list(
       case DISPLAYLIST_OPTIONS_REMAPPINGS:
          {
             unsigned p;
-            unsigned max_users          = *(input_driver_get_uint(INPUT_ACTION_MAX_USERS));
+            unsigned max_users          = settings->uints.input_max_users;
 
 #ifdef HAVE_CONFIGFILE
             if (menu_entries_append_enum(list,
@@ -6493,7 +6493,7 @@ unsigned menu_displaylist_build_list(
 
          {
             unsigned user;
-            unsigned max_users          = *(input_driver_get_uint(INPUT_ACTION_MAX_USERS));
+            unsigned max_users          = settings->uints.input_max_users;
             for (user = 0; user < max_users; user++)
             {
                if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
@@ -7250,7 +7250,7 @@ unsigned menu_displaylist_build_list(
 
             {
                unsigned user;
-               unsigned max_users          = *(input_driver_get_uint(INPUT_ACTION_MAX_USERS));
+               unsigned max_users          = settings->uints.input_max_users;
                for (user = 0; user < max_users; user++)
                {
                   if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
@@ -7774,6 +7774,17 @@ unsigned menu_displaylist_build_list(
                      MENU_ENUM_LABEL_VIDEO_DRIVER,
                      PARSE_ONLY_STRING_OPTIONS, false) == 0)
                count++;
+
+            if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
+                     MENU_ENUM_LABEL_VIDEO_GPU_INDEX,
+                     PARSE_ONLY_INT, false) == 0)
+               count++;
+
+            if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
+                     MENU_ENUM_LABEL_VIDEO_MONITOR_INDEX,
+                     PARSE_ONLY_UINT, false) == 0)
+               count++;
+
 #if defined(GEKKO) || !defined(__PSL1GHT__) && defined(__PS3__)
             if (true)
 #else
@@ -7804,10 +7815,6 @@ unsigned menu_displaylist_build_list(
                      PARSE_ONLY_UINT, false) == 0)
                count++;
             if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
-                     MENU_ENUM_LABEL_VIDEO_MONITOR_INDEX,
-                     PARSE_ONLY_UINT, false) == 0)
-               count++;
-            if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
                      MENU_ENUM_LABEL_VIDEO_ROTATION,
                      PARSE_ONLY_UINT, false) == 0)
                count++;
@@ -7817,10 +7824,6 @@ unsigned menu_displaylist_build_list(
                         MENU_ENUM_LABEL_SCREEN_ORIENTATION,
                         PARSE_ONLY_UINT, false) == 0)
                   count++;
-            if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
-                     MENU_ENUM_LABEL_VIDEO_GPU_INDEX,
-                     PARSE_ONLY_INT, false) == 0)
-               count++;
 #if defined(DINGUX) && defined(DINGUX_BETA)
             if (MENU_DISPLAYLIST_PARSE_SETTINGS_ENUM(list,
                      MENU_ENUM_LABEL_VIDEO_DINGUX_REFRESH_RATE,
@@ -9402,11 +9405,15 @@ static unsigned menu_displaylist_build_shader_parameter(
       unsigned setting_type)
 {
    video_shader_ctx_t shader_info;
-   float current_value                  = 0.0f;
+   float    current_value               = 0.0f;
+   float    original_value              = 0.0f;
    unsigned count                       = 0;
-   float    min                         = 0;
-   float    max                         = 0;
+   float    min                         = 0.0f;
+   float    max                         = 0.0f;
+   float    half_step                   = 0.0f;
    unsigned i                           = 0;
+   unsigned checked                     = 0;
+   bool     checked_found               = false;
    struct video_shader_parameter *param = NULL;
    unsigned offset                      = entry_type - _offset;
 
@@ -9418,7 +9425,9 @@ static unsigned menu_displaylist_build_shader_parameter(
 
    min                         = param->minimum;
    max                         = param->maximum;
+   half_step                   = param->step * 0.5f;
    current_value               = min;
+   original_value              = param->current;
 
    for (i = 0; current_value < (max + 0.0001f); i++)
    {
@@ -9432,9 +9441,26 @@ static unsigned menu_displaylist_build_shader_parameter(
                MENU_ENUM_LABEL_NO_ITEMS,
                setting_type,
                i, entry_type))
+      {
+         if (!checked_found &&
+             (fabs(current_value - original_value) < half_step))
+         {
+            checked       = count;
+            checked_found = true;
+         }
+
          count++;
+      }
 
       current_value += param->step;
+   }
+
+   if (checked_found)
+   {
+      menu_file_list_cbs_t *cbs = (menu_file_list_cbs_t*)info->list->list[checked].actiondata;
+      if (cbs)
+         cbs->checked = true;
+      menu_navigation_set_selection(checked);
    }
 
    return count;
@@ -9745,7 +9771,7 @@ bool menu_displaylist_ctl(enum menu_displaylist_ctl_state type,
          break;
       case DISPLAYLIST_OPTIONS_REMAPPINGS_PORT:
          {
-            unsigned max_users          = *(input_driver_get_uint(INPUT_ACTION_MAX_USERS));
+            unsigned max_users          = settings->uints.input_max_users;
             const char *menu_driver     = menu_driver_ident();
             bool is_rgui                = string_is_equal(menu_driver, "rgui");
             file_list_t *list           = info->list;

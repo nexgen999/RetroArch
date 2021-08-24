@@ -399,6 +399,28 @@ static void menu_input_st_hex_cb(void *userdata, const char *str)
    menu_input_dialog_end();
 }
 
+static void menu_input_st_float_cb(void *userdata, const char *str)
+{
+   if (str && *str)
+   {
+      const char        *label = menu_input_dialog_get_label_setting_buffer();
+      rarch_setting_t *setting = menu_setting_find(label);
+
+      float value;
+      int chars_read;
+      int ret;
+
+      /* Ensure that input string contains a valid
+       * floating point value */
+      ret = sscanf(str, "%f %n", &value, &chars_read);
+
+      if ((ret == 1) && !str[chars_read])
+         setting_set_with_string_representation(setting, str);
+   }
+
+   menu_input_dialog_end();
+}
+
 static void menu_input_st_string_cb(void *userdata, const char *str)
 {
    if (str && *str)
@@ -440,6 +462,9 @@ static int setting_generic_action_ok_linefeed(
       case ST_HEX:
          cb = menu_input_st_hex_cb;
          break;
+      case ST_FLOAT:
+         cb = menu_input_st_float_cb;
+         break;
       case ST_STRING:
       case ST_STRING_OPTIONS:
          cb = menu_input_st_string_cb;
@@ -478,6 +503,9 @@ static void setting_add_special_callbacks(
             (*list)[idx].action_cancel = NULL;
             break;
          case ST_HEX:
+            (*list)[idx].action_cancel = NULL;
+            break;
+         case ST_FLOAT:
             (*list)[idx].action_cancel = NULL;
             break;
          case ST_STRING:
@@ -7995,11 +8023,11 @@ static void general_write_handler(rarch_setting_t *setting)
             {
                /* Event rate does not matter when disabling
                 * sensors - set to zero */
-               input_sensor_set_state(i,
+               input_set_sensor_state(i,
                      RETRO_SENSOR_ACCELEROMETER_DISABLE, 0);
-               input_sensor_set_state(i,
+               input_set_sensor_state(i,
                      RETRO_SENSOR_GYROSCOPE_DISABLE, 0);
-               input_sensor_set_state(i,
+               input_set_sensor_state(i,
                      RETRO_SENSOR_ILLUMINANCE_DISABLE, 0);
             }
          }
@@ -9726,11 +9754,6 @@ static bool setting_append_list(
 #endif
             for (i = 0; i < ARRAY_SIZE(bool_entries); i++)
             {
-#if defined(IOS)
-               if (bool_entries[i].name_enum_idx ==
-                     MENU_ENUM_LABEL_CORE_INFO_CACHE_ENABLE)
-                  continue;
-#endif
                CONFIG_BOOL(
                      list, list_info,
                      bool_entries[i].target,
@@ -11067,6 +11090,7 @@ static bool setting_append_list(
                      general_write_handler,
                      general_read_handler);
                menu_settings_list_current_add_range(list, list_info, 0, 0, 0.001, true, false);
+               SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ALLOW_INPUT);
                SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_LAKKA_ADVANCED);
 
                CONFIG_FLOAT(
@@ -12570,7 +12594,7 @@ static bool setting_append_list(
 
             CONFIG_UINT(
                   list, list_info,
-                  input_driver_get_uint(INPUT_ACTION_MAX_USERS),
+                  &settings->uints.input_max_users,
                   MENU_ENUM_LABEL_INPUT_MAX_USERS,
                   MENU_ENUM_LABEL_VALUE_INPUT_MAX_USERS,
                   input_max_users,
@@ -12996,7 +13020,7 @@ static bool setting_append_list(
 
             CONFIG_FLOAT(
                   list, list_info,
-                  input_driver_get_float(INPUT_ACTION_AXIS_THRESHOLD),
+                  &settings->floats.input_axis_threshold,
                   MENU_ENUM_LABEL_INPUT_BUTTON_AXIS_THRESHOLD,
                   MENU_ENUM_LABEL_VALUE_INPUT_BUTTON_AXIS_THRESHOLD,
                   DEFAULT_AXIS_THRESHOLD,
@@ -18964,7 +18988,7 @@ static bool setting_append_list(
             /* TODO/FIXME - add enum_idx */
 
             {
-               unsigned max_users        = *(input_driver_get_uint(INPUT_ACTION_MAX_USERS));
+               unsigned max_users        = settings->uints.input_max_users;
                for (user = 0; user < max_users; user++)
                {
                   char s1[64], s2[64];
