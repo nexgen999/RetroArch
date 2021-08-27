@@ -22037,7 +22037,7 @@ static void input_driver_poll(void)
             p_rarch->overlay_ptr,
             input_overlay_opacity,
             input_analog_dpad_mode,
-            settings->floats.input_analog_deadzone);
+            settings->floats.input_axis_threshold);
    }
 #endif
 
@@ -24537,6 +24537,10 @@ static int menu_input_pointer_post_iterate(
       /* If currently showing a message box, close it */
       if (messagebox_active)
          menu_input_pointer_close_messagebox(&p_rarch->menu_driver_state);
+      /* If onscreen keyboard is shown, send a 'backspace' */
+      else if (osk_active)
+         input_keyboard_event(true, '\x7f', '\x7f',
+               0, RETRO_DEVICE_KEYBOARD);
       /* ...otherwise, invoke standard MENU_ACTION_CANCEL
        * action */
       else
