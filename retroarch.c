@@ -3451,7 +3451,7 @@ static bool menu_driver_init_internal(
       }
    }
 
-   if (!p_rarch->menu_driver_data || !menu_init(
+   if (!p_rarch->menu_driver_data || !rarch_menu_init(
             menu_st,
             &p_rarch->dialog_st,
             p_rarch->menu_driver_ctx,
@@ -7980,6 +7980,31 @@ static void path_clear_all(void)
    path_clear(RARCH_PATH_BASENAME);
 }
 
+bool retroarch_get_current_savestate_path(char *path, size_t len)
+{
+   struct rarch_state *p_rarch = &rarch_st;
+   const global_t *global      = &p_rarch->g_extern;
+   settings_t *settings        = p_rarch->configuration_settings;
+   int state_slot              = settings ? settings->ints.state_slot : 0;
+   const char *name_savestate  = NULL;
+
+   if (!path || !global)
+      return false;
+
+   name_savestate = global->name.savestate;
+   if (string_is_empty(name_savestate))
+      return false;
+
+   if (state_slot > 0)
+      snprintf(path, len, "%s%d",  name_savestate, state_slot);
+   else if (state_slot < 0)
+      fill_pathname_join_delim(path, name_savestate, "auto", '.', len);
+   else
+      strlcpy(path, name_savestate, len);
+
+   return true;
+}
+
 enum rarch_content_type path_is_media_type(const char *path)
 {
    char ext_lower[128];
@@ -11451,20 +11476,7 @@ static bool command_event_main_state(
 
    state_path[0] = msg[0]      = '\0';
 
-   if (global)
-   {
-      int state_slot             = settings->ints.state_slot;
-      const char *name_savestate = global->name.savestate;
-
-      if (state_slot > 0)
-         snprintf(state_path, sizeof(state_path), "%s%d",
-               name_savestate, state_slot);
-      else if (state_slot < 0)
-         fill_pathname_join_delim(state_path,
-               name_savestate, "auto", '.', sizeof(state_path));
-      else
-         strlcpy(state_path, name_savestate, sizeof(state_path));
-   }
+   retroarch_get_current_savestate_path(state_path, sizeof(state_path));
 
    core_serialize_size(&info);
 
@@ -11473,6 +11485,7 @@ static bool command_event_main_state(
       switch (cmd)
       {
          case CMD_EVENT_SAVE_STATE:
+         case CMD_EVENT_SAVE_STATE_TO_RAM:
             {
                bool savestate_auto_index                      =
                      settings->bools.savestate_auto_index;
@@ -11481,7 +11494,10 @@ static bool command_event_main_state(
                bool frame_time_counter_reset_after_save_state =
                      settings->bools.frame_time_counter_reset_after_save_state;
 
-               content_save_state(state_path, true, false);
+               if (cmd == CMD_EVENT_SAVE_STATE)
+                  content_save_state(state_path, true, false);
+               else
+                  content_save_state_to_ram();
 
                /* Clean up excess savestates if necessary */
                if (savestate_auto_index && (savestate_max_keep > 0))
@@ -11499,24 +11515,33 @@ static bool command_event_main_state(
             }
             break;
          case CMD_EVENT_LOAD_STATE:
-            if (content_load_state(state_path, false, false))
+         case CMD_EVENT_LOAD_STATE_FROM_RAM:
             {
+               bool res = false;
+               if (cmd == CMD_EVENT_LOAD_STATE)
+                  res = content_load_state(state_path, false, false);
+               else
+                  res = content_load_state_from_ram();
+
+               if (res)
+               {
 #ifdef HAVE_CHEEVOS
-               if (rcheevos_hardcore_active())
-               {
-                  rcheevos_pause_hardcore();
-                  runloop_msg_queue_push(msg_hash_to_str(MSG_CHEEVOS_HARDCORE_MODE_DISABLED), 0, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
-               }
+                  if (rcheevos_hardcore_active())
+                  {
+                     rcheevos_pause_hardcore();
+                     runloop_msg_queue_push(msg_hash_to_str(MSG_CHEEVOS_HARDCORE_MODE_DISABLED), 0, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
+                  }
 #endif
-               ret = true;
+                  ret = true;
 #ifdef HAVE_NETWORKING
-               netplay_driver_ctl(RARCH_NETPLAY_CTL_LOAD_SAVESTATE, NULL);
+                  netplay_driver_ctl(RARCH_NETPLAY_CTL_LOAD_SAVESTATE, NULL);
 #endif
-               {
-                  bool frame_time_counter_reset_after_load_state =
-                     settings->bools.frame_time_counter_reset_after_load_state;
-                  if (frame_time_counter_reset_after_load_state)
-                     p_rarch->video_driver_frame_time_count = 0;
+                  {
+                     bool frame_time_counter_reset_after_load_state =
+                        settings->bools.frame_time_counter_reset_after_load_state;
+                     if (frame_time_counter_reset_after_load_state)
+                        p_rarch->video_driver_frame_time_count = 0;
+                  }
                }
             }
             push_msg = false;
@@ -12207,6 +12232,21 @@ bool command_event(enum event_command cmd, void *data)
 #endif
             break;
          }
+#if defined(HAVE_RUNAHEAD) && (defined(HAVE_DYNAMIC) || defined(HAVE_DYLIB))
+      case CMD_EVENT_LOAD_SECOND_CORE:
+         if (!runloop_state.core_running ||
+             !p_rarch->runahead_secondary_core_available)
+            return false;
+         if (p_rarch->secondary_lib_handle)
+            return true;
+         if (!secondary_core_ensure_exists(p_rarch, settings))
+         {
+            secondary_core_destroy(p_rarch);
+            p_rarch->runahead_secondary_core_available = false;
+            return false;
+         }
+         return true;
+#endif
       case CMD_EVENT_LOAD_STATE:
 #ifdef HAVE_BSV_MOVIE
          /* Immutable - disallow savestate load when
@@ -12223,11 +12263,13 @@ bool command_event(enum event_command cmd, void *data)
             return false;
          break;
       case CMD_EVENT_UNDO_LOAD_STATE:
+      case CMD_EVENT_UNDO_SAVE_STATE:
+      case CMD_EVENT_LOAD_STATE_FROM_RAM:
          if (!command_event_main_state(p_rarch, cmd))
             return false;
          break;
-      case CMD_EVENT_UNDO_SAVE_STATE:
-         if (!command_event_main_state(p_rarch, cmd))
+      case CMD_EVENT_RAM_STATE_TO_FILE:
+         if (!content_ram_state_to_file((char *) data))
             return false;
          break;
       case CMD_EVENT_RESIZE_WINDOWED_SCALE:
@@ -12259,6 +12301,7 @@ bool command_event(enum event_command cmd, void *data)
 #endif
          return false;
       case CMD_EVENT_SAVE_STATE:
+      case CMD_EVENT_SAVE_STATE_TO_RAM:
          {
             bool savestate_auto_index = settings->bools.savestate_auto_index;
             int state_slot            = settings->ints.state_slot;
@@ -33523,6 +33566,14 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
             }
          }
          return false;
+#if defined(HAVE_RUNAHEAD) && (defined(HAVE_DYNAMIC) || defined(HAVE_DYLIB))
+      case RARCH_CTL_IS_SECOND_CORE_AVAILABLE:
+         return runloop_state.core_running &&
+               p_rarch->runahead_secondary_core_available;
+      case RARCH_CTL_IS_SECOND_CORE_LOADED:
+         return runloop_state.core_running &&
+               (p_rarch->secondary_lib_handle != NULL);
+#endif
       case RARCH_CTL_HAS_SET_USERNAME:
          return p_rarch->has_set_username;
       case RARCH_CTL_IS_INITED:
@@ -36546,15 +36597,75 @@ bool core_unset_netplay_callbacks(void)
 
 bool core_set_cheat(retro_ctx_cheat_info_t *info)
 {
-   struct rarch_state *p_rarch  = &rarch_st;
+   struct rarch_state *p_rarch       = &rarch_st;
+#if defined(HAVE_RUNAHEAD) && (defined(HAVE_DYNAMIC) || defined(HAVE_DYLIB))
+   settings_t *settings              = p_rarch->configuration_settings;
+   bool run_ahead_enabled            = false;
+   unsigned run_ahead_frames         = 0;
+   bool run_ahead_secondary_instance = false;
+   bool want_runahead                = false;
+
+   if (settings)
+   {
+      run_ahead_enabled              = settings->bools.run_ahead_enabled;
+      run_ahead_frames               = settings->uints.run_ahead_frames;
+      run_ahead_secondary_instance   = settings->bools.run_ahead_secondary_instance;
+      want_runahead                  = run_ahead_enabled && (run_ahead_frames > 0);
+#ifdef HAVE_NETWORKING
+      if (want_runahead)
+         want_runahead               = !netplay_driver_ctl(RARCH_NETPLAY_CTL_IS_ENABLED, NULL);
+#endif
+   }
+#endif
+
    p_rarch->current_core.retro_cheat_set(info->index, info->enabled, info->code);
+
+#if defined(HAVE_RUNAHEAD) && (defined(HAVE_DYNAMIC) || defined(HAVE_DYLIB))
+   if (want_runahead &&
+       run_ahead_secondary_instance &&
+       p_rarch->runahead_secondary_core_available &&
+       secondary_core_ensure_exists(p_rarch, settings) &&
+       p_rarch->secondary_core.retro_cheat_set)
+      p_rarch->secondary_core.retro_cheat_set(info->index, info->enabled, info->code);
+#endif
+
    return true;
 }
 
 bool core_reset_cheat(void)
 {
    struct rarch_state *p_rarch  = &rarch_st;
+#if defined(HAVE_RUNAHEAD) && (defined(HAVE_DYNAMIC) || defined(HAVE_DYLIB))
+   settings_t *settings              = p_rarch->configuration_settings;
+   bool run_ahead_enabled            = false;
+   unsigned run_ahead_frames         = 0;
+   bool run_ahead_secondary_instance = false;
+   bool want_runahead                = false;
+
+   if (settings)
+   {
+      run_ahead_enabled              = settings->bools.run_ahead_enabled;
+      run_ahead_frames               = settings->uints.run_ahead_frames;
+      run_ahead_secondary_instance   = settings->bools.run_ahead_secondary_instance;
+      want_runahead                  = run_ahead_enabled && (run_ahead_frames > 0);
+#ifdef HAVE_NETWORKING
+      if (want_runahead)
+         want_runahead               = !netplay_driver_ctl(RARCH_NETPLAY_CTL_IS_ENABLED, NULL);
+#endif
+   }
+#endif
+
    p_rarch->current_core.retro_cheat_reset();
+
+#if defined(HAVE_RUNAHEAD) && (defined(HAVE_DYNAMIC) || defined(HAVE_DYLIB))
+   if (want_runahead &&
+       run_ahead_secondary_instance &&
+       p_rarch->runahead_secondary_core_available &&
+       secondary_core_ensure_exists(p_rarch, settings) &&
+       p_rarch->secondary_core.retro_cheat_reset)
+      p_rarch->secondary_core.retro_cheat_reset();
+#endif
+
    return true;
 }
 

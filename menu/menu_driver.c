@@ -1779,6 +1779,8 @@ bool menu_driver_search_filter_enabled(const char *label, unsigned type)
                        /* > Cheat files */
                        string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_CHEAT_FILE_LOAD)) ||
                        string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_CHEAT_FILE_LOAD_APPEND)) ||
+                       /* > Cheats */
+                       string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_CORE_CHEAT_OPTIONS)) ||
                        /* > Overlays */
                        string_is_equal(label, msg_hash_to_str(MENU_ENUM_LABEL_INPUT_OVERLAY)) ||
                        /* > Manage Cores */
@@ -2138,15 +2140,7 @@ bool generic_menu_init_list(struct menu_state *menu_st,
    return true;
 }
 
-/**
- * menu_init:
- * @data                     : Menu context handle.
- *
- * Create and initialize menu handle.
- *
- * Returns: menu handle on success, otherwise NULL.
- **/
-bool menu_init(
+bool rarch_menu_init(
       struct menu_state *menu_st,
       menu_dialog_t        *p_dialog,
       const menu_ctx_driver_t *menu_driver_ctx,
