@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <StoreAssociation xmlns="http://schemas.microsoft.com/appx/2010/storeassociation">
-  <Publisher>CN=27C1A410-87F9-44DF-A25D-81D8568AC4C1</Publisher>
-  <PublisherDisplayName>Hidden Solutions</PublisherDisplayName>
+  <Publisher>CN=E23CCF16-EA3E-4B56-94BB-A822AEB10063</Publisher>
+  <PublisherDisplayName>Rev Solutions</PublisherDisplayName>
   <DeveloperAccountType>MSA</DeveloperAccountType>
   <GeneratePackageHash>http://www.w3.org/2001/04/xmlenc#sha256</GeneratePackageHash>
   <SupportedLocales>
@@ -361,16 +361,22 @@
     <Language Code="zu-za" InMinimumRequirementSet="true" />
   </SupportedLocales>
   <ProductReservedInfo>
-    <MainPackageIdentityName>65354HiddenSolutions.RevRetroUnstable</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.RetroRevisited-Auto-update</MainPackageIdentityName>
     <ReservedNames>
-      <ReservedName>RevRetro Unstable</ReservedName>
+      <ReservedName>RestroRevisited - Auto-update</ReservedName>
     </ReservedNames>
   </ProductReservedInfo>
   <AccountPackageIdentityNames>
-    <MainPackageIdentityName>65354HiddenSolutions.FFTTPP</MainPackageIdentityName>
-    <MainPackageIdentityName>65354HiddenSolutions.PPSSPPSS</MainPackageIdentityName>
-    <MainPackageIdentityName>65354HiddenSolutions.PSRetro</MainPackageIdentityName>
-    <MainPackageIdentityName>65354HiddenSolutions.RevRetro</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.ControlRA</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.ControlRAApp</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.FTPUWPNew</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.MoonlightTestingNxz</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.MoonlightTestingNxz2</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.PSPRevocation</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.PSXNewListing</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.RetroRevisited-Auto-update</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.TestingRAasaGame</MainPackageIdentityName>
+    <MainPackageIdentityName>57516RevSolutions.TestingRAasanApp</MainPackageIdentityName>
   </AccountPackageIdentityNames>
-  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9NF4DWBT0FTW" />
+  <PackageInfoList LandingUrl="https://developer.microsoft.com/dashboard/Application?appId=9N5W1B01929B" />
 </StoreAssociation>

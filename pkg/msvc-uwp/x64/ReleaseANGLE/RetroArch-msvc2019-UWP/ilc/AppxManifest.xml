@@ -7,25 +7,29 @@
 
     For more information on package manifest files, see http://go.microsoft.com/fwlink/?LinkID=241727
   -->
-  <Identity Name="38290N-Soft.RetroRev" Publisher="CN=DBEECBAB-E09C-4284-B5EA-80CDCB791506" Version="1.9.0.0" ProcessorArchitecture="x64" />
-  <mp:PhoneIdentity PhoneProductId="1f559380-b5f1-40bd-870d-bd993d67b2f4" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <Identity Name="57516RevSolutions.TestingRAasaGame" Publisher="CN=E23CCF16-EA3E-4B56-94BB-A822AEB10063" Version="5.0.0.0" ProcessorArchitecture="x64" />
+  <mp:PhoneIdentity PhoneProductId="4da8f7a9-2303-4b31-b24f-aaed9e17f978" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
-    <DisplayName>RetroRev</DisplayName>
-    <PublisherDisplayName>libretro</PublisherDisplayName>
+    <DisplayName>Testing RA as a Game</DisplayName>
+    <PublisherDisplayName>Rev Solutions</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>
     <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.18362.0" MaxVersionTested="10.0.19041.0" />
-    <PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.29231.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+    <PackageDependency Name="Microsoft.VCLibs.120.00.Universal" MinVersion="12.0.30501.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00.UWPDesktop" MinVersion="14.0.30035.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+    <PackageDependency Name="Microsoft.VCLibs.120.00.UWPDesktop" MinVersion="12.0.40653.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.30035.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
   </Dependencies>
   <Resources>
     <Resource Language="EN-US" />
   </Resources>
   <Applications>
     <Application Id="App" Executable="RetroArch-msvc2019-UWP.exe" EntryPoint="RetroArch.App">
-      <uap:VisualElements DisplayName="RetroRev" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="RetroArch is a frontend for emulators, game engines and media players. It enables you to run classic games on a wide range of computers and consoles through its slick graphical interface. Settings are also unified so configuration is done once and for all. RetroArch has advanced features like shaders, netplay, rewinding, next-frame response times, and more!" BackgroundColor="transparent">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square310x310Logo="Assets\LargeTile.png" Square71x71Logo="Assets\SmallTile.png"></uap:DefaultTile>
-        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      <uap:VisualElements DisplayName="RA as a Game" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="RetroArch is a frontend for emulators, game engines and media players. It enables you to run classic games on a wide range of computers and consoles through its slick graphical interface. Settings are also unified so configuration is done once and for all. RetroArch has advanced features like shaders, netplay, rewinding, next-frame response times, and more!" BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square310x310Logo="Assets\LargeTile.png" Square71x71Logo="Assets\SmallTile.png">
+        </uap:DefaultTile>
+        <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#000000" />
       </uap:VisualElements>
     </Application>
   </Applications>
@@ -36,11 +40,11 @@
     <rescap:Capability Name="broadFileSystemAccess" />
   </Capabilities>
   <build:Metadata>
-    <build:Item Name="cl.exe" Version="19.28.29913.0 built by: vcwrkspc" />
+    <build:Item Name="cl.exe" Version="19.29.30133.0 built by: vcwrkspc" />
     <build:Item Name="VisualStudio" Version="16.0" />
     <build:Item Name="VisualStudioEdition" Value="Microsoft Visual Studio Community 2019" />
     <build:Item Name="OperatingSystem" Version="10.0.19041.1 (WinBuild.160101.0800)" />
-    <build:Item Name="Microsoft.Build.AppxPackage.dll" Version="16.0.31110.138" />
+    <build:Item Name="Microsoft.Build.AppxPackage.dll" Version="16.0.31613.86" />
     <build:Item Name="ProjectGUID" Value="{f5e937b6-1ba0-4446-b94b-f3bbdef908f4}" />
     <build:Item Name="ilc.exe" Version="1.4.24211.07 built by: PROJECTNSVC2" />
     <build:Item Name="OptimizingToolset" Value="ilc.exe" />
