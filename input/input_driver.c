@@ -25,6 +25,9 @@
 #include "../verbosity.h"
 #include "../configuration.h"
 #include "../list_special.h"
+#include "../performance_counters.h"
+
+#define HOLD_BTN_DELAY_SEC 2
 
 /**************************************/
 
@@ -420,4 +423,267 @@ static const input_device_driver_t *input_joypad_init_first(void *data)
    }
 
    return NULL;
+}
+
+bool input_driver_toggle_button_combo(
+      unsigned mode,
+      retro_time_t current_time,
+      input_bits_t* p_input)
+{
+   switch (mode)
+   {
+      case INPUT_TOGGLE_DOWN_Y_L_R:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_DOWN) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_Y) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_L) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_R))
+            return true;
+         break;
+      case INPUT_TOGGLE_L3_R3:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_L3) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_R3))
+            return true;
+         break;
+      case INPUT_TOGGLE_L1_R1_START_SELECT:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_L) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_R) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_START) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_SELECT))
+            return true;
+         break;
+      case INPUT_TOGGLE_START_SELECT:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_START) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_SELECT))
+            return true;
+         break;
+      case INPUT_TOGGLE_L3_R:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_L3) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_R))
+            return true;
+         break;
+      case INPUT_TOGGLE_L_R:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_L) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_R))
+            return true;
+         break;
+      case INPUT_TOGGLE_DOWN_SELECT:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_DOWN) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_SELECT))
+            return true;
+         break;
+      case INPUT_TOGGLE_L2_R2:
+         if (BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_L2) &&
+             BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_R2))
+            return true;
+         break;
+      case INPUT_TOGGLE_HOLD_START:
+      {
+         static rarch_timer_t timer = {0};
+
+         if (!BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_START))
+         {
+            /* timer only runs while start is held down */
+            timer.timer_end   = true;
+            timer.timer_begin = false;
+            timer.timeout_end = 0;
+            return false;
+         }
+
+         /* User started holding down the start button, start the timer */
+         if (!timer.timer_begin)
+         {
+            uint64_t current_usec = cpu_features_get_time_usec();
+            timer.timeout_us      = HOLD_BTN_DELAY_SEC * 1000000;
+            timer.current         = current_usec;
+            timer.timeout_end     = timer.current + timer.timeout_us;
+            timer.timer_begin     = true;
+            timer.timer_end       = false;
+         }
+
+         timer.current            = current_time;
+         timer.timeout_us         = (timer.timeout_end - timer.current);
+
+         if (!timer.timer_end && (timer.timeout_us <= 0))
+         {
+            /* start has been held down long enough,
+             * stop timer and enter menu */
+            timer.timer_end   = true;
+            timer.timer_begin = false;
+            timer.timeout_end = 0;
+            return true;
+         }
+
+         return false;
+      }
+      case INPUT_TOGGLE_HOLD_SELECT:
+      {
+         static rarch_timer_t timer = {0};
+
+         if (!BIT256_GET_PTR(p_input, RETRO_DEVICE_ID_JOYPAD_SELECT))
+         {
+            /* timer only runs while select is held down */
+            timer.timer_end   = true;
+            timer.timer_begin = false;
+            timer.timeout_end = 0;
+            return false;
+         }
+
+         /* user started holding down the select button, start the timer */
+         if (!timer.timer_begin)
+         {
+            uint64_t current_usec = cpu_features_get_time_usec();
+            timer.timeout_us      = HOLD_BTN_DELAY_SEC * 1000000;
+            timer.current         = current_usec;
+            timer.timeout_end     = timer.current + timer.timeout_us;
+            timer.timer_begin     = true;
+            timer.timer_end       = false;
+         }
+
+         timer.current            = current_time;
+         timer.timeout_us         = (timer.timeout_end - timer.current);
+
+         if (!timer.timer_end && (timer.timeout_us <= 0))
+         {
+            /* select has been held down long enough,
+             * stop timer and enter menu */
+            timer.timer_end   = true;
+            timer.timer_begin = false;
+            timer.timeout_end = 0;
+            return true;
+         }
+
+         return false;
+      }
+      default:
+      case INPUT_TOGGLE_NONE:
+         break;
+   }
+
+   return false;
+}
+
+int16_t input_state_wrap(
+      input_driver_t *current_input,
+      void *data,
+      const input_device_driver_t *joypad,
+      const input_device_driver_t *sec_joypad,
+      rarch_joypad_info_t *joypad_info,
+      const struct retro_keybind **binds,
+      bool keyboard_mapping_blocked,
+      unsigned _port,
+      unsigned device,
+      unsigned idx,
+      unsigned id)
+{
+   int16_t ret                   = 0;
+
+   /* Do a bitwise OR to combine input states together */
+
+   if (device == RETRO_DEVICE_JOYPAD)
+   {
+      if (id == RETRO_DEVICE_ID_JOYPAD_MASK)
+      {
+         if (joypad)
+            ret                    |= joypad->state(
+                  joypad_info, binds[_port], _port);
+         if (sec_joypad)
+            ret                    |= sec_joypad->state(
+                  joypad_info, binds[_port], _port);
+      }
+      else
+      {
+         /* Do a bitwise OR to combine both input
+          * states together */
+         if (binds[_port][id].valid)
+         {
+            /* Auto-binds are per joypad, not per user. */
+            const uint64_t bind_joykey     = binds[_port][id].joykey;
+            const uint64_t bind_joyaxis    = binds[_port][id].joyaxis;
+            const uint64_t autobind_joykey = joypad_info->auto_binds[id].joykey;
+            const uint64_t autobind_joyaxis= joypad_info->auto_binds[id].joyaxis;
+            uint16_t port                  = joypad_info->joy_idx;
+            float axis_threshold           = joypad_info->axis_threshold;
+            const uint64_t joykey          = (bind_joykey != NO_BTN)
+               ? bind_joykey  : autobind_joykey;
+            const uint32_t joyaxis         = (bind_joyaxis != AXIS_NONE)
+               ? bind_joyaxis : autobind_joyaxis;
+
+            if (joypad)
+            {
+               if ((uint16_t)joykey != NO_BTN && joypad->button(
+                        port, (uint16_t)joykey))
+                  return 1;
+               if (joyaxis != AXIS_NONE &&
+                     ((float)abs(joypad->axis(port, joyaxis))
+                      / 0x8000) > axis_threshold)
+                  return 1;
+            }
+            if (sec_joypad)
+            {
+               if ((uint16_t)joykey != NO_BTN && sec_joypad->button(
+                        port, (uint16_t)joykey))
+                  return 1;
+               if (joyaxis != AXIS_NONE &&
+                     ((float)abs(sec_joypad->axis(port, joyaxis))
+                      / 0x8000) > axis_threshold)
+                  return 1;
+            }
+         }
+      }
+   }
+
+   if (current_input && current_input->input_state)
+      ret |= current_input->input_state(
+            data,
+            joypad,
+            sec_joypad,
+            joypad_info,
+            binds,
+            keyboard_mapping_blocked,
+            _port,
+            device,
+            idx,
+            id);
+   return ret;
+}
+
+int16_t input_joypad_axis(
+      float input_analog_deadzone,
+      float input_analog_sensitivity,
+      const input_device_driver_t *drv,
+      unsigned port, uint32_t joyaxis, float normal_mag)
+{
+   int16_t val                    = (joyaxis != AXIS_NONE) ? drv->axis(port, joyaxis) : 0;
+
+   if (input_analog_deadzone)
+   {
+      /* if analog value is below the deadzone, ignore it
+       * normal magnitude is calculated radially for analog sticks
+       * and linearly for analog buttons */
+      if (normal_mag <= input_analog_deadzone)
+         return 0;
+
+      /* due to the way normal_mag is calculated differently for buttons and
+       * sticks, this results in either a radial scaled deadzone for sticks
+       * or linear scaled deadzone for analog buttons */
+      val = val * MAX(1.0f,(1.0f / normal_mag)) * MIN(1.0f,
+            ((normal_mag - input_analog_deadzone)
+          / (1.0f - input_analog_deadzone)));
+   }
+
+   if (input_analog_sensitivity != 1.0f)
+   {
+      float normalized = (1.0f / 0x7fff) * val;
+      int      new_val = 0x7fff * normalized  *
+         input_analog_sensitivity;
+
+      if (new_val > 0x7fff)
+         return 0x7fff;
+      else if (new_val < -0x7fff)
+         return -0x7fff;
+
+      return new_val;
+   }
+
+   return val;
 }
