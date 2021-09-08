@@ -7741,6 +7741,19 @@ static void path_clear_all(void)
    path_clear(RARCH_PATH_BASENAME);
 }
 
+void ram_state_to_file(void)
+{
+   char state_path[PATH_MAX_LENGTH];
+
+   if (!content_ram_state_pending())
+      return;
+
+   state_path[0] = '\0';
+
+   if (retroarch_get_current_savestate_path(state_path, sizeof(state_path)))
+      command_event(CMD_EVENT_RAM_STATE_TO_FILE, state_path);
+}
+
 bool retroarch_get_current_savestate_path(char *path, size_t len)
 {
    struct rarch_state *p_rarch = &rarch_st;
@@ -12107,6 +12120,10 @@ bool command_event(enum event_command cmd, void *data)
 
             runloop_state.core_running   = false;
 
+            /* The platform that uses ram_state_save calls it when the content
+             * ends and writes it to a file */
+            ram_state_to_file();
+
             /* Save last selected disk index, if required */
             if (sys_info)
                disk_control_save_image_index(&sys_info->disk_control);
@@ -12201,6 +12218,9 @@ bool command_event(enum event_command cmd, void *data)
       case CMD_EVENT_CHEEVOS_HARDCORE_MODE_TOGGLE:
 #ifdef HAVE_CHEEVOS
          rcheevos_toggle_hardcore_paused();
+
+         if (rcheevos_hardcore_active())
+            runloop_state.slowmotion = false;
 #endif
          break;
       case CMD_EVENT_REINIT_FROM_TOGGLE:
@@ -12520,6 +12540,10 @@ bool command_event(enum event_command cmd, void *data)
          {
             struct retro_hw_render_callback *hwr = NULL;
             rarch_system_info_t *sys_info        = &runloop_state.system;
+
+            /* The platform that uses ram_state_save calls it when the content
+             * ends and writes it to a file */
+            ram_state_to_file();
 
             /* Save last selected disk index, if required */
             if (sys_info)
