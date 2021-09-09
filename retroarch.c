@@ -2349,7 +2349,7 @@ bool menu_entries_ctl(enum menu_entries_ctl_state state, void *data)
    return true;
 }
 
-static menu_search_terms_t *menu_entries_search_get_terms_internal(void)
+menu_search_terms_t *menu_entries_search_get_terms_internal(void)
 {
    struct rarch_state *p_rarch = &rarch_st;
    struct menu_state *menu_st  = &p_rarch->menu_driver_state;
@@ -2368,99 +2368,6 @@ static menu_search_terms_t *menu_entries_search_get_terms_internal(void)
    return &cbs->search;
 }
 
-bool menu_entries_search_push(const char *search_term)
-{
-   menu_search_terms_t *search = menu_entries_search_get_terms_internal();
-   char search_term_clipped[MENU_SEARCH_FILTER_MAX_LENGTH];
-   size_t i;
-
-   search_term_clipped[0] = '\0';
-
-   /* Sanity check + verify whether we have reached
-    * the maximum number of allowed search terms */
-   if (!search ||
-       string_is_empty(search_term) ||
-       (search->size >= MENU_SEARCH_FILTER_MAX_TERMS))
-      return false;
-
-   /* Check whether search term already exists
-    * > Note that we clip the input search term
-    *   to MENU_SEARCH_FILTER_MAX_LENGTH characters
-    *   *before* comparing existing entries */
-   strlcpy(search_term_clipped, search_term,
-         sizeof(search_term_clipped));
-
-   for (i = 0; i < search->size; i++)
-   {
-      if (string_is_equal(search_term_clipped,
-            search->terms[i]))
-         return false;
-   }
-
-   /* Add search term */
-   strlcpy(search->terms[search->size], search_term_clipped,
-         sizeof(search->terms[search->size]));
-   search->size++;
-
-   return true;
-}
-
-bool menu_entries_search_pop(void)
-{
-   menu_search_terms_t *search = menu_entries_search_get_terms_internal();
-
-   /* Do nothing if list of search terms is empty */
-   if (!search ||
-       (search->size == 0))
-      return false;
-
-   /* Remove last item from the list */
-   search->size--;
-   search->terms[search->size][0] = '\0';
-
-   return true;
-}
-
-menu_search_terms_t *menu_entries_search_get_terms(void)
-{
-   menu_search_terms_t *search = menu_entries_search_get_terms_internal();
-
-   if (!search ||
-       (search->size == 0))
-      return NULL;
-
-   return search;
-}
-
-/* Convenience function: Appends list of current
- * search terms to specified string */
-void menu_entries_search_append_terms_string(char *s, size_t len)
-{
-   menu_search_terms_t *search = menu_entries_search_get_terms_internal();
-
-   if (search &&
-       (search->size > 0) &&
-       s)
-   {
-      size_t current_len = strlen_size(s, len);
-      size_t i;
-
-      /* If buffer is already 'full', nothing
-       * further can be added */
-      if (current_len >= len)
-         return;
-
-      s   += current_len;
-      len -= current_len;
-
-      for (i = 0; i < search->size; i++)
-      {
-         strlcat(s, " > ", len);
-         strlcat(s, search->terms[i], len);
-      }
-   }
-}
-
 /* Searches current menu list for specified 'needle'
  * string. If string is found, returns true and sets
  * 'idx' to the matching list entry index. */
@@ -2475,10 +2382,10 @@ bool menu_entries_list_search(const char *needle, size_t *idx)
    char needle_char            = 0;
    size_t i;
 
-   if (!list ||
-       string_is_empty(needle) ||
-       !idx)
-      goto end;
+   if (   !list
+       || string_is_empty(needle)
+       || !idx)
+      return match_found;
 
    /* Check if we are searching for a single
     * Latin alphabet character */
@@ -2558,7 +2465,6 @@ bool menu_entries_list_search(const char *needle, size_t *idx)
       }
    }
 
-end:
    return match_found;
 }
 
@@ -2624,20 +2530,6 @@ void menu_display_handle_wallpaper_upload(
          (struct texture_image*)task_data,
          user_data,
          MENU_IMAGE_WALLPAPER);
-}
-
-/**
- * config_get_menu_driver_options:
- *
- * Get an enumerated list of all menu driver names,
- * separated by '|'.
- *
- * Returns: string listing of all menu driver names,
- * separated by '|'.
- **/
-const char *config_get_menu_driver_options(void)
-{
-   return char_list_new_special(STRING_LIST_MENU_DRIVERS, NULL);
 }
 
 #ifdef HAVE_COMPRESSION
@@ -3405,53 +3297,6 @@ retro_time_t menu_driver_get_current_time(void)
 }
 
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-static void menu_driver_set_last_shader_path_int(
-      const char *shader_path,
-      enum rarch_shader_type *type,
-      char *shader_dir, size_t dir_len,
-      char *shader_file, size_t file_len)
-{
-   const char *file_name = NULL;
-
-   if (!type ||
-       !shader_dir ||
-       (dir_len < 1) ||
-       !shader_file ||
-       (file_len < 1))
-      return;
-
-   /* Reset existing cache */
-   *type          = RARCH_SHADER_NONE;
-   shader_dir[0]  = '\0';
-   shader_file[0] = '\0';
-
-   /* If path is empty, do nothing */
-   if (string_is_empty(shader_path))
-      return;
-
-   /* Get shader type */
-   *type = video_shader_parse_type(shader_path);
-
-   /* If type is invalid, do nothing */
-   if (*type == RARCH_SHADER_NONE)
-      return;
-
-   /* Cache parent directory */
-   fill_pathname_parent_dir(shader_dir, shader_path, dir_len);
-
-   /* If parent directory is empty, then file name
-    * is only valid if 'shader_path' refers to an
-    * existing file in the root of the file system */
-   if (string_is_empty(shader_dir) &&
-       !path_is_valid(shader_path))
-      return;
-
-   /* Cache file name */
-   file_name = path_basename_nocompression(shader_path);
-   if (!string_is_empty(file_name))
-      strlcpy(shader_file, file_name, file_len);
-}
-
 void menu_driver_set_last_shader_preset_path(const char *path)
 {
    struct rarch_state *p_rarch = &rarch_st;
@@ -4209,299 +4054,6 @@ clear:
    menu_shader_manager_clear_num_passes(shader);
    command_event(CMD_EVENT_SHADER_PRESET_LOADED, NULL);
    return ret;
-}
-
-static bool menu_shader_manager_save_preset_internal(
-      bool save_reference,
-      const struct video_shader *shader,
-      const char *basename,
-      const char *dir_video_shader,
-      bool apply,
-      const char **target_dirs,
-      size_t num_target_dirs)
-{
-   char fullname[PATH_MAX_LENGTH];
-   char buffer[PATH_MAX_LENGTH];
-   bool ret                       = false;
-   enum rarch_shader_type type    = RARCH_SHADER_NONE;
-   char *preset_path              = NULL;
-   size_t i                       = 0;
-
-   fullname[0] = buffer[0]        = '\0';
-
-   if (!shader || !shader->passes)
-      return false;
-
-   type = menu_shader_manager_get_type(shader);
-
-   if (type == RARCH_SHADER_NONE)
-      return false;
-
-   if (!string_is_empty(basename))
-   {
-      /* We are comparing against a fixed list of file
-       * extensions, the longest (slangp) being 6 characters
-       * in length. We therefore only need to extract the first
-       * 7 characters from the extension of the input path
-       * to correctly validate a match */
-      char ext_lower[8];
-      const char *ext = NULL;
-
-      ext_lower[0]    = '\0';
-
-      strlcpy(fullname, basename, sizeof(fullname));
-
-      /* Get file extension */
-      ext = strrchr(basename, '.');
-
-      /* Copy and convert to lower case */
-      if (ext && (*(++ext) != '\0'))
-      {
-         strlcpy(ext_lower, ext, sizeof(ext_lower));
-         string_to_lower(ext_lower);
-      }
-
-      /* Append extension automatically as appropriate. */
-      if (     !string_is_equal(ext_lower, "cgp")
-            && !string_is_equal(ext_lower, "glslp")
-            && !string_is_equal(ext_lower, "slangp"))
-      {
-         const char *preset_ext = video_shader_get_preset_extension(type);
-         strlcat(fullname, preset_ext, sizeof(fullname));
-      }
-   }
-   else
-      snprintf(fullname, sizeof(fullname), "retroarch%s",
-            video_shader_get_preset_extension(type));
-
-   if (path_is_absolute(fullname))
-   {
-      preset_path = fullname;
-      ret         = video_shader_write_preset(preset_path,
-            dir_video_shader,
-            shader, save_reference);
-
-      if (ret)
-         RARCH_LOG("[Shaders - Save Preset]: Saved shader preset to %s.\n", preset_path);
-      else
-         RARCH_ERR("[Shaders - Save Preset]: Failed writing shader preset to %s.\n", preset_path);
-   }
-   else
-   {
-      char basedir[PATH_MAX_LENGTH];
-
-      for (i = 0; i < num_target_dirs; i++)
-      {
-         if (string_is_empty(target_dirs[i]))
-            continue;
-
-         fill_pathname_join(buffer, target_dirs[i],
-               fullname, sizeof(buffer));
-
-         strlcpy(basedir, buffer, sizeof(basedir));
-         path_basedir(basedir);
-
-         if (!path_is_directory(basedir))
-         {
-            ret = path_mkdir(basedir);
-
-            if (!ret)
-            {
-               RARCH_WARN("[Shaders - Save Preset]: Failed to create preset directory %s.\n", basedir);
-               continue;
-            }
-         }
-
-         preset_path = buffer;
-
-         ret = video_shader_write_preset(preset_path,
-               dir_video_shader,
-               shader, save_reference);
-
-         if (ret)
-         {
-            RARCH_LOG("[Shaders - Save Preset]: Saved shader preset to %s.\n", preset_path);
-            break;
-         }
-         else
-            RARCH_WARN("[Shaders - Save Preset]: Failed writing shader preset to %s.\n", preset_path);
-      }
-
-      if (!ret)
-         RARCH_ERR("[Shaders - Save Preset]: Failed to write shader preset. Make sure shader directory"
-               " and/or config directory are writable.\n");
-   }
-
-   if (ret && apply)
-      menu_shader_manager_set_preset(NULL, type, preset_path, true);
-
-   return ret;
-}
-
-static bool menu_shader_manager_operate_auto_preset(
-      struct retro_system_info *system,
-      settings_t *settings,
-      enum auto_shader_operation op,
-      const struct video_shader *shader,
-      const char *dir_video_shader,
-      const char *dir_menu_config,
-      enum auto_shader_type type, bool apply)
-{
-   char old_presets_directory[PATH_MAX_LENGTH];
-   char config_directory[PATH_MAX_LENGTH];
-   char tmp[PATH_MAX_LENGTH];
-   char file[PATH_MAX_LENGTH];
-   static enum rarch_shader_type shader_types[] =
-   {
-      RARCH_SHADER_GLSL, RARCH_SHADER_SLANG, RARCH_SHADER_CG
-   };
-   const char *core_name            = system ? system->library_name : NULL;
-   const char *auto_preset_dirs[3]  = {0};
-
-   old_presets_directory[0] = config_directory[0] = tmp[0] = file[0] = '\0';
-
-   if (type != SHADER_PRESET_GLOBAL && string_is_empty(core_name))
-      return false;
-
-   if (!path_is_empty(RARCH_PATH_CONFIG))
-      fill_pathname_basedir(
-            config_directory,
-            path_get(RARCH_PATH_CONFIG),
-            sizeof(config_directory));
-
-   /* We are only including this directory for compatibility purposes with
-    * versions 1.8.7 and older. */
-   if (op != AUTO_SHADER_OP_SAVE && !string_is_empty(dir_video_shader))
-      fill_pathname_join(
-            old_presets_directory,
-            dir_video_shader,
-            "presets",
-            sizeof(old_presets_directory));
-
-   auto_preset_dirs[0] = dir_menu_config;
-   auto_preset_dirs[1] = config_directory;
-   auto_preset_dirs[2] = old_presets_directory;
-
-   switch (type)
-   {
-      case SHADER_PRESET_GLOBAL:
-         strcpy_literal(file, "global");
-         break;
-      case SHADER_PRESET_CORE:
-         fill_pathname_join(file, core_name, core_name, sizeof(file));
-         break;
-      case SHADER_PRESET_PARENT:
-         fill_pathname_parent_dir_name(tmp,
-               path_get(RARCH_PATH_BASENAME), sizeof(tmp));
-         fill_pathname_join(file, core_name, tmp, sizeof(file));
-         break;
-      case SHADER_PRESET_GAME:
-         {
-            const char *game_name =
-               path_basename(path_get(RARCH_PATH_BASENAME));
-            if (string_is_empty(game_name))
-               return false;
-            fill_pathname_join(file, core_name, game_name, sizeof(file));
-            break;
-         }
-      default:
-         return false;
-   }
-
-   switch (op)
-   {
-      case AUTO_SHADER_OP_SAVE:
-         return menu_shader_manager_save_preset_internal(
-               settings->bools.video_shader_preset_save_reference_enable,
-               shader, file,
-               dir_video_shader,
-               apply,
-               auto_preset_dirs,
-               ARRAY_SIZE(auto_preset_dirs));
-      case AUTO_SHADER_OP_REMOVE:
-         {
-            /* remove all supported auto-shaders of given type */
-            char *end;
-            size_t i, j, m;
-
-            char preset_path[PATH_MAX_LENGTH];
-
-            /* n = amount of relevant shader presets found
-             * m = amount of successfully deleted shader presets */
-            size_t n = m = 0;
-
-            for (i = 0; i < ARRAY_SIZE(auto_preset_dirs); i++)
-            {
-               if (string_is_empty(auto_preset_dirs[i]))
-                  continue;
-
-               fill_pathname_join(preset_path,
-                     auto_preset_dirs[i], file, sizeof(preset_path));
-               end = preset_path + strlen(preset_path);
-
-               for (j = 0; j < ARRAY_SIZE(shader_types); j++)
-               {
-                  const char *preset_ext;
-
-                  if (!video_shader_is_supported(shader_types[j]))
-                     continue;
-
-                  preset_ext = video_shader_get_preset_extension(shader_types[j]);
-                  strlcpy(end, preset_ext, sizeof(preset_path) - (end - preset_path));
-
-                  if (path_is_valid(preset_path))
-                  {
-                     n++;
-
-                     if (!filestream_delete(preset_path))
-                     {
-                        m++;
-                        RARCH_LOG("[Shaders]: Deleted shader preset from \"%s\".\n", preset_path);
-                     }
-                     else
-                        RARCH_WARN("[Shaders]: Failed to remove shader preset at \"%s\".\n", preset_path);
-                  }
-               }
-            }
-
-            return n == m;
-         }
-      case AUTO_SHADER_OP_EXISTS:
-         {
-            /* test if any supported auto-shaders of given type exists */
-            char *end;
-            size_t i, j;
-
-            char preset_path[PATH_MAX_LENGTH];
-
-            for (i = 0; i < ARRAY_SIZE(auto_preset_dirs); i++)
-            {
-               if (string_is_empty(auto_preset_dirs[i]))
-                  continue;
-
-               fill_pathname_join(preset_path,
-                     auto_preset_dirs[i], file, sizeof(preset_path));
-               end = preset_path + strlen(preset_path);
-
-               for (j = 0; j < ARRAY_SIZE(shader_types); j++)
-               {
-                  const char *preset_ext;
-
-                  if (!video_shader_is_supported(shader_types[j]))
-                     continue;
-
-                  preset_ext = video_shader_get_preset_extension(shader_types[j]);
-                  strlcpy(end, preset_ext, sizeof(preset_path) - (end - preset_path));
-
-                  if (path_is_valid(preset_path))
-                     return true;
-               }
-            }
-         }
-         break;
-   }
-
-   return false;
 }
 
 /**
@@ -7887,67 +7439,6 @@ static void dir_free_shader(
 }
 
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
-static bool dir_init_shader_internal(
-      bool shader_remember_last_dir,
-      struct rarch_dir_shader_list *dir_list,
-      const char *shader_dir,
-      const char *shader_file_name,
-      bool show_hidden_files)
-{
-   size_t i;
-   struct string_list *new_list           = dir_list_new_special(
-         shader_dir, DIR_LIST_SHADERS, NULL, show_hidden_files);
-   bool search_file_name                  = shader_remember_last_dir &&
-         !string_is_empty(shader_file_name);
-
-   if (!new_list)
-      return false;
-
-   if (new_list->size < 1)
-   {
-      dir_list_free(new_list);
-      return false;
-   }
-
-   dir_list_sort(new_list, false);
-
-   dir_list->shader_list              = new_list;
-   dir_list->directory                = strdup(shader_dir);
-   dir_list->selection                = 0;
-   dir_list->shader_loaded            = false;
-   dir_list->remember_last_preset_dir = shader_remember_last_dir;
-
-   if (search_file_name)
-   {
-      for (i = 0; i < new_list->size; i++)
-      {
-         const char *file_name = NULL;
-         const char *file_path = new_list->elems[i].data;
-
-         if (string_is_empty(file_path))
-            continue;
-
-         /* If a shader file name has been provided,
-          * search the list for a match and set 'selection'
-          * index if found */
-         file_name = path_basename(file_path);
-
-         if (!string_is_empty(file_name) &&
-               string_is_equal(file_name, shader_file_name))
-         {
-            RARCH_LOG("[Shaders]: %s \"%s\"\n",
-                  msg_hash_to_str(MSG_FOUND_SHADER),
-                  file_path);
-
-            dir_list->selection = i;
-            break;
-         }
-      }
-   }
-
-   return true;
-}
-
 static void dir_init_shader(
       struct rarch_state *p_rarch,
       settings_t *settings,
@@ -8680,16 +8171,6 @@ static void retroarch_msg_queue_init(void)
 /* COMMAND */
 
 #ifdef HAVE_COMMAND
-bool command_version(command_t *cmd, const char* arg)
-{
-   char reply[256]             = {0};
-
-   snprintf(reply, sizeof(reply), "%s\n", PACKAGE_VERSION);
-   cmd->replier(cmd, reply, strlen(reply));
-
-   return true;
-}
-
 bool command_get_status(command_t *cmd, const char* arg)
 {
    char reply[4096]            = {0};
@@ -8767,72 +8248,18 @@ bool command_get_config_param(command_t *cmd, const char* arg)
    return true;
 }
 
-static const rarch_memory_descriptor_t* command_memory_get_descriptor(const rarch_memory_map_t* mmap, unsigned address)
-{
-   const rarch_memory_descriptor_t* desc = mmap->descriptors;
-   const rarch_memory_descriptor_t* end  = desc + mmap->num_descriptors;
-
-   for (; desc < end; desc++)
-   {
-      if (desc->core.select == 0)
-      {
-         /* if select is 0, attempt to explicitly match the address */
-         if (address >= desc->core.start && address < desc->core.start + desc->core.len)
-            return desc;
-      }
-      else
-      {
-         /* otherwise, attempt to match the address by matching the select bits */
-         if (((desc->core.start ^ address) & desc->core.select) == 0)
-         {
-            /* sanity check - make sure the descriptor is large enough to hold the target address */
-            if (address - desc->core.start < desc->core.len)
-               return desc;
-         }
-      }
-   }
-
-   return NULL;
-}
-
-static uint8_t* command_memory_get_pointer(unsigned address,
-      unsigned int* max_bytes, int for_write, char* reply_at, size_t len)
-{
-   const rarch_system_info_t* system = &runloop_state.system;
-   if (!system || system->mmaps.num_descriptors == 0)
-      strlcpy(reply_at, " -1 no memory map defined\n", len);
-   else
-   {
-      const rarch_memory_descriptor_t* desc = command_memory_get_descriptor(&system->mmaps, address);
-      if (!desc)
-         strlcpy(reply_at, " -1 no descriptor for address\n", len);
-      else if (!desc->core.ptr)
-         strlcpy(reply_at, " -1 no data for descriptor\n", len);
-      else if (for_write && (desc->core.flags & RETRO_MEMDESC_CONST))
-         strlcpy(reply_at, " -1 descriptor data is readonly\n", len);
-      else
-      {
-         const size_t offset = address - desc->core.start;
-         *max_bytes = (desc->core.len - offset);
-         return (uint8_t*)desc->core.ptr + desc->core.offset + offset;
-      }
-   }
-
-   *max_bytes = 0;
-   return NULL;
-}
-
 bool command_read_memory(command_t *cmd, const char *arg)
 {
    unsigned i;
-   char* reply                  = NULL;
-   char* reply_at               = NULL;
-   const uint8_t* data          = NULL;
-   unsigned int nbytes          = 0;
-   unsigned int alloc_size      = 0;
-   unsigned int address         = -1;
-   unsigned int len             = 0;
-   unsigned int max_bytes       = 0;
+   char* reply                       = NULL;
+   char* reply_at                    = NULL;
+   const uint8_t* data               = NULL;
+   unsigned int nbytes               = 0;
+   unsigned int alloc_size           = 0;
+   unsigned int address              = -1;
+   unsigned int len                  = 0;
+   unsigned int max_bytes            = 0;
+   const rarch_system_info_t* system = &runloop_state.system;
 
    if (sscanf(arg, "%x %u", &address, &nbytes) != 2)
       return false;
@@ -8842,7 +8269,7 @@ bool command_read_memory(command_t *cmd, const char *arg)
    reply      = (char*)malloc(alloc_size);
    reply_at   = reply + snprintf(reply, alloc_size - 1, "READ_CORE_MEMORY %x", address);
 
-   data       = command_memory_get_pointer(address, &max_bytes, 0, reply_at, alloc_size - strlen(reply));
+   data       = command_memory_get_pointer(system, address, &max_bytes, 0, reply_at, alloc_size - strlen(reply));
 
    if (data)
    {
@@ -8868,8 +8295,10 @@ bool command_write_memory(command_t *cmd, const char *arg)
    unsigned int address         = (unsigned int)strtoul(arg, (char**)&arg, 16);
    unsigned int max_bytes       = 0;
    char reply[128]              = "";
+   const rarch_system_info_t
+      *system                   = &runloop_state.system;
    char *reply_at               = reply + snprintf(reply, sizeof(reply) - 1, "WRITE_CORE_MEMORY %x", address);
-   uint8_t *data                = command_memory_get_pointer(address, &max_bytes, 1, reply_at, sizeof(reply) - strlen(reply) - 1);
+   uint8_t *data                = command_memory_get_pointer(system, address, &max_bytes, 1, reply_at, sizeof(reply) - strlen(reply) - 1);
 
    if (data)
    {
@@ -10212,145 +9641,6 @@ static bool command_event_disk_control_append_image(
    return true;
 }
 
-/**
- * event_set_volume:
- * @gain      : amount of gain to be applied to current volume level.
- *
- * Adjusts the current audio volume level.
- *
- **/
-static void command_event_set_volume(
-      settings_t *settings,
-      float gain,
-      bool widgets_active,
-      bool audio_driver_mute_enable)
-{
-   char msg[128];
-   float new_volume            = settings->floats.audio_volume + gain;
-
-   new_volume                  = MAX(new_volume, -80.0f);
-   new_volume                  = MIN(new_volume, 12.0f);
-
-   configuration_set_float(settings, settings->floats.audio_volume, new_volume);
-
-   snprintf(msg, sizeof(msg), "%s: %.1f dB",
-         msg_hash_to_str(MSG_AUDIO_VOLUME),
-         new_volume);
-
-#if defined(HAVE_GFX_WIDGETS)
-   if (widgets_active)
-      gfx_widget_volume_update_and_show(new_volume,
-            audio_driver_mute_enable);
-   else
-#endif
-      runloop_msg_queue_push(msg, 1, 180, true, NULL,
-            MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
-
-   RARCH_LOG("[Audio]: %s\n", msg);
-
-   audio_set_float(AUDIO_ACTION_VOLUME_GAIN, new_volume);
-}
-
-/**
- * event_set_mixer_volume:
- * @gain      : amount of gain to be applied to current volume level.
- *
- * Adjusts the current audio volume level.
- *
- **/
-static void command_event_set_mixer_volume(
-      settings_t *settings,
-      float gain)
-{
-   char msg[128];
-   float new_volume            = settings->floats.audio_mixer_volume + gain;
-
-   new_volume                  = MAX(new_volume, -80.0f);
-   new_volume                  = MIN(new_volume, 12.0f);
-
-   configuration_set_float(settings, settings->floats.audio_mixer_volume, new_volume);
-
-   snprintf(msg, sizeof(msg), "%s: %.1f dB",
-         msg_hash_to_str(MSG_AUDIO_VOLUME),
-         new_volume);
-   runloop_msg_queue_push(msg, 1, 180, true, NULL, MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_INFO);
-
-   RARCH_LOG("[Audio]: %s\n", msg);
-
-   audio_set_float(AUDIO_ACTION_VOLUME_GAIN, new_volume);
-}
-
-/**
- * command_event_init_controllers:
- *
- * Initialize libretro controllers.
- **/
-static void command_event_init_controllers(rarch_system_info_t *info,
-      settings_t *settings, unsigned num_active_users)
-{
-   unsigned num_core_ports = info->ports.size;
-   unsigned port;
-
-   for (port = 0; port < num_core_ports; port++)
-   {
-      unsigned device                                 = RETRO_DEVICE_NONE;
-      const struct retro_controller_description *desc = NULL;
-      retro_ctx_controller_info_t pad;
-      unsigned i;
-
-      /* Check whether current core port is mapped
-       * to an input device
-       * > If is not, leave 'device' set to
-       *   'RETRO_DEVICE_NONE'
-       * > For example: if input ports 0 and 1 are
-       *   mapped to core port 0, core port 1 will
-       *   be unmapped and should be disabled */
-      for (i = 0; i < num_active_users; i++)
-      {
-         if (i >= MAX_USERS)
-            break;
-
-         if (port == settings->uints.input_remap_ports[i])
-         {
-            device = input_config_get_device(port);
-            break;
-         }
-      }
-
-      desc = libretro_find_controller_description(
-            &info->ports.data[port], device);
-
-      if (desc && !desc->desc)
-      {
-         /* If we're trying to connect a completely unknown device,
-          * revert back to JOYPAD. */
-         if (device != RETRO_DEVICE_JOYPAD && device != RETRO_DEVICE_NONE)
-         {
-            /* Do not fix device,
-             * because any use of dummy core will reset this,
-             * which is not a good idea. */
-            RARCH_WARN("[Input]: Input device ID %u is unknown to this "
-                  "libretro implementation. Using RETRO_DEVICE_JOYPAD.\n",
-                  device);
-            device = RETRO_DEVICE_JOYPAD;
-         }
-      }
-
-      pad.device     = device;
-      pad.port       = port;
-      core_set_controller_port_device(&pad);
-   }
-}
-
-#ifdef HAVE_CONFIGFILE
-static void command_event_disable_overrides(void)
-{
-   /* Reload the original config */
-   config_unload_override();
-   runloop_state.overrides_active = false;
-}
-#endif
-
 static void command_event_deinit_core(
       struct rarch_state *p_rarch,
       bool reinit)
@@ -10386,7 +9676,11 @@ static void command_event_deinit_core(
 
 #ifdef HAVE_CONFIGFILE
    if (runloop_state.overrides_active)
-      command_event_disable_overrides();
+   {
+      /* Reload the original config */
+      config_unload_override();
+      runloop_state.overrides_active = false;
+   }
 #endif
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
    p_rarch->runtime_shader_preset[0] = '\0';
@@ -10402,217 +9696,6 @@ static void command_event_deinit_core(
    }
    else
       input_remapping_restore_global_config(true);
-}
-
-#ifdef HAVE_CHEATS
-static void command_event_init_cheats(
-      bool apply_cheats_after_load,
-      const char *path_cheat_db,
-      struct rarch_state *p_rarch)
-{
-#ifdef HAVE_NETWORKING
-   bool allow_cheats             = !netplay_driver_ctl(
-         RARCH_NETPLAY_CTL_IS_DATA_INITED, NULL);
-#else
-   bool allow_cheats             = true;
-#endif
-#ifdef HAVE_BSV_MOVIE
-   allow_cheats                 &= !(p_rarch->bsv_movie_state_handle != NULL);
-#endif
-
-   if (!allow_cheats)
-      return;
-
-   cheat_manager_alloc_if_empty();
-   cheat_manager_load_game_specific_cheats(path_cheat_db);
-
-   if (apply_cheats_after_load)
-      cheat_manager_apply_cheats();
-}
-#endif
-
-static void command_event_load_auto_state(global_t *global)
-{
-   char savestate_name_auto[PATH_MAX_LENGTH];
-   bool ret                        = false;
-#ifdef HAVE_CHEEVOS
-   if (rcheevos_hardcore_active())
-      return;
-#endif
-#ifdef HAVE_NETWORKING
-   if (netplay_driver_ctl(RARCH_NETPLAY_CTL_IS_ENABLED, NULL))
-      return;
-#endif
-
-   savestate_name_auto[0] = '\0';
-
-   fill_pathname_noext(savestate_name_auto, global->name.savestate,
-         ".auto", sizeof(savestate_name_auto));
-
-   if (!path_is_valid(savestate_name_auto))
-      return;
-
-   ret = content_load_state(savestate_name_auto, false, true);
-
-   RARCH_LOG("%s: %s\n%s \"%s\" %s.\n",
-         msg_hash_to_str(MSG_FOUND_AUTO_SAVESTATE_IN),
-         savestate_name_auto,
-         msg_hash_to_str(MSG_AUTOLOADING_SAVESTATE_FROM),
-         savestate_name_auto, ret ? "succeeded" : "failed"
-         );
-}
-
-static void command_event_set_savestate_auto_index(
-      settings_t *settings,
-      const global_t *global)
-{
-   size_t i;
-   char state_dir[PATH_MAX_LENGTH];
-   char state_base[PATH_MAX_LENGTH];
-
-   struct string_list *dir_list      = NULL;
-   unsigned max_idx                  = 0;
-   bool savestate_auto_index         = settings->bools.savestate_auto_index;
-   bool show_hidden_files            = settings->bools.show_hidden_files;
-
-   if (!global || !savestate_auto_index)
-      return;
-
-   state_dir[0] = state_base[0]      = '\0';
-
-   /* Find the file in the same directory as global->savestate_name
-    * with the largest numeral suffix.
-    *
-    * E.g. /foo/path/content.state, will try to find
-    * /foo/path/content.state%d, where %d is the largest number available.
-    */
-   fill_pathname_basedir(state_dir, global->name.savestate,
-         sizeof(state_dir));
-
-   dir_list = dir_list_new_special(state_dir, DIR_LIST_PLAIN, NULL,
-         show_hidden_files);
-
-   if (!dir_list)
-      return;
-
-   fill_pathname_base(state_base, global->name.savestate,
-         sizeof(state_base));
-
-   for (i = 0; i < dir_list->size; i++)
-   {
-      unsigned idx;
-      char elem_base[128]             = {0};
-      const char *end                 = NULL;
-      const char *dir_elem            = dir_list->elems[i].data;
-
-      fill_pathname_base(elem_base, dir_elem, sizeof(elem_base));
-
-      if (strstr(elem_base, state_base) != elem_base)
-         continue;
-
-      end = dir_elem + strlen(dir_elem);
-      while ((end > dir_elem) && ISDIGIT((int)end[-1]))
-         end--;
-
-      idx = (unsigned)strtoul(end, NULL, 0);
-      if (idx > max_idx)
-         max_idx = idx;
-   }
-
-   dir_list_free(dir_list);
-
-   configuration_set_int(settings, settings->ints.state_slot, max_idx);
-
-   RARCH_LOG("%s: #%d\n",
-         msg_hash_to_str(MSG_FOUND_LAST_STATE_SLOT),
-         max_idx);
-}
-
-static void command_event_set_savestate_garbage_collect(
-      const global_t *global,
-      struct rarch_state *p_rarch,
-      unsigned max_to_keep,
-      bool show_hidden_files
-      )
-{
-   size_t i, cnt = 0;
-   char state_dir[PATH_MAX_LENGTH];
-   char state_base[PATH_MAX_LENGTH];
-
-   struct string_list *dir_list      = NULL;
-   unsigned min_idx                  = UINT_MAX;
-   const char *oldest_save           = NULL;
-
-   state_dir[0]                      = '\0';
-   state_base[0]                     = '\0';
-
-   /* Similar to command_event_set_savestate_auto_index(),
-    * this will find the lowest numbered save-state */
-   fill_pathname_basedir(state_dir, global->name.savestate,
-         sizeof(state_dir));
-
-   dir_list = dir_list_new_special(state_dir, DIR_LIST_PLAIN, NULL,
-         show_hidden_files);
-
-   if (!dir_list)
-      return;
-
-   fill_pathname_base(state_base, global->name.savestate,
-         sizeof(state_base));
-
-   for (i = 0; i < dir_list->size; i++)
-   {
-      unsigned idx;
-      char elem_base[128];
-      const char *ext                 = NULL;
-      const char *end                 = NULL;
-      const char *dir_elem            = dir_list->elems[i].data;
-
-      elem_base[0]                    = '\0';
-
-      if (string_is_empty(dir_elem))
-         continue;
-
-      fill_pathname_base(elem_base, dir_elem, sizeof(elem_base));
-
-      /* Only consider files with a '.state' extension
-       * > i.e. Ignore '.state.auto', '.state.bak', etc. */
-      ext = path_get_extension(elem_base);
-      if (string_is_empty(ext) ||
-          !string_starts_with_size(ext, "state", STRLEN_CONST("state")))
-         continue;
-
-      /* Check whether this file is associated with
-       * the current content */
-      if (!string_starts_with(elem_base, state_base))
-         continue;
-
-      /* This looks like a valid save */
-      cnt++;
-
-      /* > Get index */
-      end = dir_elem + strlen(dir_elem);
-      while ((end > dir_elem) && ISDIGIT((int)end[-1]))
-         end--;
-
-      idx = string_to_unsigned(end);
-
-      /* > Check if this is the lowest index so far */
-      if (idx < min_idx)
-      {
-         min_idx     = idx;
-         oldest_save = dir_elem;
-      }
-   }
-
-   /* Only delete one save state per save action
-    * > Conservative behaviour, designed to minimise
-    *   the risk of deleting multiple incorrect files
-    *   in case of accident */
-   if (!string_is_empty(oldest_save) && (cnt > max_to_keep))
-      filestream_delete(oldest_save);
-
-   dir_list_free(dir_list);
 }
 
 static bool event_init_content(
@@ -10650,10 +9733,7 @@ static bool event_init_content(
       path_fill_names(p_rarch);
 
    if (!content_init())
-   {
-      runloop_state.core_running = false;
       return false;
-   }
 
    command_event_set_savestate_auto_index(settings, global);
 
@@ -10810,18 +9890,18 @@ static INLINE float retroarch_set_frame_limit(
 {
    if (fastforward_ratio < 1.0f)
       return 0.0f;
-   return (retro_time_t)roundf(1000000.0f / (av_info->timing.fps * fastforward_ratio));
+   return (retro_time_t)roundf(1000000.0f / 
+         (av_info->timing.fps * fastforward_ratio));
 }
 
 static INLINE float retroarch_get_runloop_fastforward_ratio(
       settings_t *settings,
-      runloop_state_t *p_runloop)
+      struct retro_fastforwarding_override *fastmotion_override)
 {
-   struct retro_fastforwarding_override *fastmotion_override =
-         &p_runloop->fastmotion_override.current;
-
-   return (fastmotion_override->fastforward && (fastmotion_override->ratio >= 0.0f)) ?
-         fastmotion_override->ratio : settings->floats.fastforward_ratio;
+   if (      fastmotion_override->fastforward 
+         && (fastmotion_override->ratio >= 0.0f))
+      return fastmotion_override->ratio;
+   return settings->floats.fastforward_ratio;
 }
 
 static bool command_event_init_core(
@@ -10885,7 +9965,7 @@ static bool command_event_init_core(
    show_set_initial_disk_msg = settings->bools.notification_show_set_initial_disk;
    poll_type_behavior        = settings->uints.input_poll_type_behavior;
    fastforward_ratio         = retroarch_get_runloop_fastforward_ratio(
-         settings, &runloop_state);
+         settings, &runloop_state.fastmotion_override.current);
 
 #ifdef HAVE_CHEEVOS
    /* assume the core supports achievements unless it tells us otherwise */
@@ -10933,7 +10013,10 @@ static bool command_event_init_core(
          p_rarch->current_savefile_dir);
 
    if (!event_init_content(settings, p_rarch))
+   {
+      runloop_state.core_running = false;
       return false;
+   }
 
    /* Verify that initial disk index was set correctly */
    disk_control_verify_initial_index(&sys_info->disk_control,
@@ -10951,70 +10034,7 @@ static bool command_event_init_core(
    return true;
 }
 
-static bool command_event_save_auto_state(
-      bool savestate_auto_save,
-      global_t *global,
-      const enum rarch_core_type current_core_type)
-{
-   bool ret                    = false;
-   char savestate_name_auto[PATH_MAX_LENGTH];
-
-   if (!global || !savestate_auto_save)
-      return false;
-   if (current_core_type == CORE_TYPE_DUMMY)
-      return false;
-
-   if (string_is_empty(path_basename(path_get(RARCH_PATH_BASENAME))))
-      return false;
-
-#ifdef HAVE_CHEEVOS
-   if (rcheevos_hardcore_active())
-      return false;
-#endif
-
-   savestate_name_auto[0]      = '\0';
-
-   fill_pathname_noext(savestate_name_auto, global->name.savestate,
-         ".auto", sizeof(savestate_name_auto));
-
-   ret = content_save_state((const char*)savestate_name_auto, true, true);
-   RARCH_LOG("%s \"%s\" %s.\n",
-         msg_hash_to_str(MSG_AUTO_SAVE_STATE_TO),
-         savestate_name_auto, ret ?
-         "succeeded" : "failed");
-
-   return true;
-}
-
 #ifdef HAVE_CONFIGFILE
-static bool command_event_save_config(
-      const char *config_path,
-      char *s, size_t len)
-{
-   bool path_exists = !string_is_empty(config_path);
-   const char *str  = path_exists ? config_path :
-      path_get(RARCH_PATH_CONFIG);
-
-   if (path_exists && config_save_file(config_path))
-   {
-      snprintf(s, len, "%s \"%s\".",
-            msg_hash_to_str(MSG_SAVED_NEW_CONFIG_TO),
-            config_path);
-      RARCH_LOG("[Config]: %s\n", s);
-      return true;
-   }
-
-   if (!string_is_empty(str))
-   {
-      snprintf(s, len, "%s \"%s\".",
-            msg_hash_to_str(MSG_FAILED_SAVING_CONFIG_TO),
-            str);
-      RARCH_ERR("[Config]: %s\n", s);
-   }
-
-   return false;
-}
-
 /**
  * command_event_save_core_config:
  *
@@ -11107,7 +10127,7 @@ static bool command_event_save_core_config(
       /* Overrides block config file saving,
        * make it appear as overrides weren't enabled
        * for a manual save. */
-      runloop_state.overrides_active = false;
+      runloop_state.overrides_active    = false;
       overrides_active                  = true;
    }
 
@@ -11177,53 +10197,6 @@ static void command_event_save_current_config(
 }
 #endif
 
-static void command_event_undo_save_state(char *s, size_t len)
-{
-   if (content_undo_save_buf_is_empty())
-   {
-      strlcpy(s,
-         msg_hash_to_str(MSG_NO_SAVE_STATE_HAS_BEEN_OVERWRITTEN_YET), len);
-      return;
-   }
-
-   if (!content_undo_save_state())
-   {
-      strlcpy(s,
-         msg_hash_to_str(MSG_FAILED_TO_UNDO_SAVE_STATE), len);
-      return;
-   }
-
-   strlcpy(s,
-         msg_hash_to_str(MSG_UNDOING_SAVE_STATE), len);
-}
-
-static void command_event_undo_load_state(char *s, size_t len)
-{
-
-   if (content_undo_load_buf_is_empty())
-   {
-      strlcpy(s,
-         msg_hash_to_str(MSG_NO_STATE_HAS_BEEN_LOADED_YET),
-         len);
-      return;
-   }
-
-   if (!content_undo_load_state())
-   {
-      snprintf(s, len, "%s \"%s\".",
-            msg_hash_to_str(MSG_FAILED_TO_UNDO_LOAD_STATE),
-            "RAM");
-      return;
-   }
-
-#ifdef HAVE_NETWORKING
-   netplay_driver_ctl(RARCH_NETPLAY_CTL_LOAD_SAVESTATE, NULL);
-#endif
-
-   strlcpy(s,
-         msg_hash_to_str(MSG_UNDID_LOAD_STATE), len);
-}
-
 static bool command_event_main_state(
       struct rarch_state *p_rarch,
       unsigned cmd)
@@ -11264,7 +10237,6 @@ static bool command_event_main_state(
                /* Clean up excess savestates if necessary */
                if (savestate_auto_index && (savestate_max_keep > 0))
                   command_event_set_savestate_garbage_collect(global,
-                        p_rarch,
                         settings->uints.savestate_max_keep,
                         settings->bools.show_hidden_files
                         );
@@ -11330,26 +10302,6 @@ static bool command_event_main_state(
       RARCH_LOG("%s\n", msg);
 
    return ret;
-}
-
-static bool command_event_resize_windowed_scale(struct rarch_state *p_rarch)
-{
-   unsigned                idx = 0;
-   settings_t      *settings   = p_rarch->configuration_settings;
-   unsigned      window_scale  = runloop_state.pending_windowed_scale;
-   bool      video_fullscreen  = settings->bools.video_fullscreen;
-
-   if (window_scale == 0)
-      return false;
-
-   configuration_set_float(settings, settings->floats.video_scale, (float)window_scale);
-
-   if (!video_fullscreen)
-      command_event(CMD_EVENT_REINIT, NULL);
-
-   rarch_ctl(RARCH_CTL_SET_WINDOWED_SCALE, &idx);
-
-   return true;
 }
 
 void input_remapping_cache_global_config(void)
@@ -11633,7 +10585,7 @@ static void retroarch_pause_checks(struct rarch_state *p_rarch)
 #endif
 }
 
-static void retroarch_frame_time_free(struct rarch_state *p_rarch)
+static void retroarch_frame_time_free(void)
 {
    memset(&runloop_state.frame_time, 0,
          sizeof(struct retro_frame_time_callback));
@@ -11641,24 +10593,24 @@ static void retroarch_frame_time_free(struct rarch_state *p_rarch)
    runloop_state.max_frames       = 0;
 }
 
-static void retroarch_audio_buffer_status_free(struct rarch_state *p_rarch)
+static void retroarch_audio_buffer_status_free(void)
 {
    memset(&runloop_state.audio_buffer_status, 0,
          sizeof(struct retro_audio_buffer_status_callback));
    runloop_state.audio_latency = 0;
 }
 
-static void retroarch_game_focus_free(struct rarch_state *p_rarch)
+static void retroarch_game_focus_free(input_game_focus_state_t *game_focus_st)
 {
    /* Ensure that game focus mode is disabled */
-   if (p_rarch->game_focus_state.enabled)
+   if (game_focus_st->enabled)
    {
       enum input_game_focus_cmd_type game_focus_cmd = GAME_FOCUS_CMD_OFF;
       command_event(CMD_EVENT_GAME_FOCUS_TOGGLE, &game_focus_cmd);
    }
 
-   p_rarch->game_focus_state.enabled        = false;
-   p_rarch->game_focus_state.core_requested = false;
+   game_focus_st->enabled        = false;
+   game_focus_st->core_requested = false;
 }
 
 static void retroarch_fastmotion_override_free(
@@ -11694,36 +10646,34 @@ static void retroarch_core_options_callback_free(runloop_state_t *p_runloop)
    p_runloop->core_options_callback.update_display = NULL;
 }
 
-static void retroarch_system_info_free(struct rarch_state *p_rarch)
+static void retroarch_system_info_free(runloop_state_t *runloop_st)
 {
-   rarch_system_info_t        *sys_info   = &runloop_state.system;
+   rarch_system_info_t *sys_info                      = &runloop_st->system;
 
    if (sys_info->subsystem.data)
       free(sys_info->subsystem.data);
+   if (sys_info->ports.data)
+      free(sys_info->ports.data);
+   if (sys_info->mmaps.descriptors)
+      free((void *)sys_info->mmaps.descriptors);
+
    sys_info->subsystem.data                           = NULL;
    sys_info->subsystem.size                           = 0;
 
-   if (sys_info->ports.data)
-      free(sys_info->ports.data);
    sys_info->ports.data                               = NULL;
    sys_info->ports.size                               = 0;
 
-   if (sys_info->mmaps.descriptors)
-      free((void *)sys_info->mmaps.descriptors);
    sys_info->mmaps.descriptors                        = NULL;
    sys_info->mmaps.num_descriptors                    = 0;
-
-   runloop_state.key_event                         = NULL;
-   runloop_state.frontend_key_event                = NULL;
-
-   p_rarch->audio_callback.callback                   = NULL;
-   p_rarch->audio_callback.set_state                  = NULL;
 
    sys_info->info.library_name                        = NULL;
    sys_info->info.library_version                     = NULL;
    sys_info->info.valid_extensions                    = NULL;
    sys_info->info.need_fullpath                       = false;
    sys_info->info.block_extract                       = false;
+
+   runloop_state.key_event                            = NULL;
+   runloop_state.frontend_key_event                   = NULL;
 
    memset(&runloop_state.system, 0, sizeof(rarch_system_info_t));
 }
@@ -12037,7 +10987,10 @@ bool command_event(enum event_command cmd, void *data)
             return false;
          break;
       case CMD_EVENT_RESIZE_WINDOWED_SCALE:
-         if (!command_event_resize_windowed_scale(p_rarch))
+         if
+            (!command_event_resize_windowed_scale
+             (p_rarch->configuration_settings,
+              runloop_state.pending_windowed_scale))
             return false;
          break;
       case CMD_EVENT_MENU_TOGGLE:
@@ -12139,7 +11092,9 @@ bool command_event(enum event_command cmd, void *data)
 #ifdef HAVE_CONFIGFILE
             if (runloop_state.overrides_active)
             {
-               command_event_disable_overrides();
+               /* Reload the original config */
+               config_unload_override();
+               runloop_state.overrides_active = false;
 
                if (!settings->bools.video_fullscreen)
                {
@@ -12188,8 +11143,10 @@ bool command_event(enum event_command cmd, void *data)
 #endif
 #ifdef HAVE_DYNAMIC
             path_clear(RARCH_PATH_CORE);
-            retroarch_system_info_free(p_rarch);
+            retroarch_system_info_free(&runloop_state);
 #endif
+	    p_rarch->audio_callback.callback                   = NULL;
+	    p_rarch->audio_callback.set_state                  = NULL;
             if (is_inited)
             {
                subsystem_current_count = 0;
@@ -13417,7 +12374,8 @@ bool command_event(enum event_command cmd, void *data)
          p_rarch->frame_limit_minimum_time = 
             retroarch_set_frame_limit(&p_rarch->video_driver_av_info,
                   retroarch_get_runloop_fastforward_ratio(
-                     settings, &runloop_state));
+                     settings,
+                     &runloop_state.fastmotion_override.current));
          break;
       case CMD_EVENT_DISCORD_INIT:
 #ifdef HAVE_DISCORD
@@ -15073,7 +14031,11 @@ static bool rarch_environment_cb(unsigned cmd, void *data)
           * - Unload any active input remaps */
 #ifdef HAVE_CONFIGFILE
          if (runloop_state.overrides_active)
-            command_event_disable_overrides();
+         {
+            /* Reload the original config */
+            config_unload_override();
+            runloop_state.overrides_active = false;
+         }
 #endif
          if (     runloop_state.remaps_core_active
                || runloop_state.remaps_content_dir_active
@@ -16640,10 +15602,12 @@ static void uninit_libretro_symbols(
    if (runloop_state.core_options)
       retroarch_deinit_core_options(
             path_get(RARCH_PATH_CORE_OPTIONS));
-   retroarch_system_info_free(p_rarch);
-   retroarch_frame_time_free(p_rarch);
-   retroarch_audio_buffer_status_free(p_rarch);
-   retroarch_game_focus_free(p_rarch);
+   retroarch_system_info_free(&runloop_state);
+   p_rarch->audio_callback.callback                   = NULL;
+   p_rarch->audio_callback.set_state                  = NULL;
+   retroarch_frame_time_free();
+   retroarch_audio_buffer_status_free();
+   retroarch_game_focus_free(&p_rarch->game_focus_state);
    retroarch_fastmotion_override_free(p_rarch, &runloop_state);
    retroarch_core_options_callback_free(&runloop_state);
    p_rarch->camera_driver_active      = false;
@@ -31290,7 +30254,11 @@ bool retroarch_main_init(int argc, char *argv[])
           * - Unload any active input remaps */
 #ifdef HAVE_CONFIGFILE
          if (runloop_state.overrides_active)
-            command_event_disable_overrides();
+         {
+            /* Reload the original config */
+            config_unload_override();
+            runloop_state.overrides_active = false;
+         }
 #endif
          if (     runloop_state.remaps_core_active
                || runloop_state.remaps_content_dir_active
@@ -31316,9 +30284,15 @@ bool retroarch_main_init(int argc, char *argv[])
 
 #ifdef HAVE_CHEATS
    cheat_manager_state_free();
-   command_event_init_cheats(settings->bools.apply_cheats_after_load,
-                             settings->paths.path_cheat_database,
-                             p_rarch);
+   command_event_init_cheats(
+         settings->bools.apply_cheats_after_load,
+         settings->paths.path_cheat_database,
+#ifdef HAVE_BSV_MOVIE
+         p_rarch->bsv_movie_state_handle
+#else
+         NULL
+#endif
+         );
 #endif
    drivers_init(p_rarch, settings, DRIVERS_CMD_ALL, verbosity_enabled);
 #ifdef HAVE_COMMAND
@@ -32206,9 +31180,9 @@ bool rarch_ctl(enum rarch_ctl_state state, void *data)
          runloop_state.overrides_active = false;
 #endif
          runloop_state.autosave         = false;
-         retroarch_frame_time_free(p_rarch);
-         retroarch_audio_buffer_status_free(p_rarch);
-         retroarch_game_focus_free(p_rarch);
+         retroarch_frame_time_free();
+         retroarch_audio_buffer_status_free();
+         retroarch_game_focus_free(&p_rarch->game_focus_state);
          retroarch_fastmotion_override_free(p_rarch, &runloop_state);
          retroarch_core_options_callback_free(&runloop_state);
          memset(&p_rarch->input_driver_analog_requested, 0,
@@ -32777,7 +31751,11 @@ bool retroarch_main_quit(void)
 
 #ifdef HAVE_CONFIGFILE
       if (runloop_state.overrides_active)
-         command_event_disable_overrides();
+      {
+         /* Reload the original config */
+         config_unload_override();
+         runloop_state.overrides_active = false;
+      }
 #endif
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
       p_rarch->runtime_shader_preset[0] = '\0';
@@ -33767,7 +32745,8 @@ static enum runloop_state runloop_check_state(
    if (p_rarch->menu_driver_alive)
    {
       float fastforward_ratio = retroarch_get_runloop_fastforward_ratio(
-            settings, &runloop_state);
+            settings,
+            &runloop_state.fastmotion_override.current);
 
       if (!settings->bools.menu_throttle_framerate && !fastforward_ratio)
          return RUNLOOP_STATE_MENU_ITERATE;
@@ -34581,7 +33560,8 @@ end:
          p_rarch->frame_limit_minimum_time = 
             retroarch_set_frame_limit(&p_rarch->video_driver_av_info,
                   retroarch_get_runloop_fastforward_ratio(
-                     settings, &runloop_state));
+                     settings,
+                     &runloop_state.fastmotion_override.current));
       else
          p_rarch->frame_limit_minimum_time = 
             retroarch_set_frame_limit(&p_rarch->video_driver_av_info,
