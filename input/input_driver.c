@@ -22,12 +22,14 @@
 #include <clamping.h>
 
 #include "input_driver.h"
+#include "input_keymaps.h"
 
 #ifdef HAVE_NETWORKING
 #include <net/net_compat.h>
 #include <net/net_socket.h>
 #endif
 
+#include "../command.h"
 #include "../retroarch.h"
 #include "../verbosity.h"
 #include "../configuration.h"
@@ -78,7 +80,8 @@ static input_device_driver_t null_joypad = {
    NULL, /* get_buttons */
    NULL, /* axis */
    NULL, /* poll */
-   NULL,
+   NULL, /* rumble */
+   NULL, /* rumble_gain */
    NULL, /* name */
    "null",
 };
@@ -322,6 +325,25 @@ bool input_driver_set_rumble(
       rumble_state = sec_joypad->set_rumble(joy_idx, effect, strength);
 
    return rumble_state;
+}
+
+/**************************************/
+
+bool input_driver_set_rumble_gain(
+         input_driver_state_t *driver_state, unsigned gain,
+         unsigned input_max_users)
+{
+   unsigned i;
+
+   if (driver_state->primary_joypad
+      && driver_state->primary_joypad->set_rumble_gain)
+   {
+      for (i = 0; i < input_max_users; i++)
+         driver_state->primary_joypad->set_rumble_gain(i, gain);
+      return true;
+   }
+   else
+      return false;
 }
 
 /**************************************/
@@ -1692,4 +1714,195 @@ void input_overlay_free(input_overlay_t *ol)
 
    free(ol);
 }
+
+void input_overlay_auto_rotate_(
+      unsigned video_driver_width,
+      unsigned video_driver_height,
+      bool input_overlay_enable,
+      input_overlay_t *ol)
+{
+   size_t i;
+   enum overlay_orientation screen_orientation         = OVERLAY_ORIENTATION_PORTRAIT;
+   enum overlay_orientation active_overlay_orientation = OVERLAY_ORIENTATION_NONE;
+   bool tmp                                            = false;
+
+   /* Sanity check */
+   if (!ol || !ol->alive || !input_overlay_enable)
+      return;
+
+   /* Get current screen orientation */
+   if (video_driver_width > video_driver_height)
+      screen_orientation = OVERLAY_ORIENTATION_LANDSCAPE;
+
+   /* Get orientation of active overlay */
+   if (!string_is_empty(ol->active->name))
+   {
+      if (strstr(ol->active->name, "landscape"))
+         active_overlay_orientation = OVERLAY_ORIENTATION_LANDSCAPE;
+      else if (strstr(ol->active->name, "portrait"))
+         active_overlay_orientation = OVERLAY_ORIENTATION_PORTRAIT;
+   }
+
+   /* Sanity check */
+   if (active_overlay_orientation == OVERLAY_ORIENTATION_NONE)
+      return;
+
+   /* If screen and overlay have the same orientation,
+    * no action is required */
+   if (screen_orientation == active_overlay_orientation)
+      return;
+
+   /* Attempt to find index of overlay corresponding
+    * to opposite orientation */
+   for (i = 0; i < ol->active->size; i++)
+   {
+      overlay_desc_t *desc = &ol->active->descs[i];
+
+      if (!desc)
+         continue;
+
+      if (!string_is_empty(desc->next_index_name))
+      {
+         bool next_overlay_found = false;
+         if (active_overlay_orientation == OVERLAY_ORIENTATION_LANDSCAPE)
+            next_overlay_found = (strstr(desc->next_index_name, "portrait") != 0);
+         else
+            next_overlay_found = (strstr(desc->next_index_name, "landscape") != 0);
+
+         if (next_overlay_found)
+         {
+            /* We have a valid target overlay
+             * > Trigger 'overly next' command event
+             * Note: tmp == false. This prevents CMD_EVENT_OVERLAY_NEXT
+             * from calling input_overlay_auto_rotate_() again */
+            ol->next_index     = desc->next_index;
+            command_event(CMD_EVENT_OVERLAY_NEXT, &tmp);
+            break;
+         }
+      }
+   }
+}
 #endif
+
+/**
+ * input_config_translate_str_to_rk:
+ * @str                            : String to translate to key ID.
+ *
+ * Translates tring representation to key identifier.
+ *
+ * Returns: key identifier.
+ **/
+enum retro_key input_config_translate_str_to_rk(const char *str)
+{
+   size_t i;
+   if (strlen(str) == 1 && ISALPHA((int)*str))
+      return (enum retro_key)(RETROK_a + (TOLOWER((int)*str) - (int)'a'));
+   for (i = 0; input_config_key_map[i].str; i++)
+   {
+      if (string_is_equal_noncase(input_config_key_map[i].str, str))
+         return input_config_key_map[i].key;
+   }
+
+   RARCH_WARN("[Input]: Key name \"%s\" not found.\n", str);
+   return RETROK_UNKNOWN;
+}
+
+/**
+ * input_config_translate_str_to_bind_id:
+ * @str                            : String to translate to bind ID.
+ *
+ * Translate string representation to bind ID.
+ *
+ * Returns: Bind ID value on success, otherwise
+ * RARCH_BIND_LIST_END on not found.
+ **/
+unsigned input_config_translate_str_to_bind_id(const char *str)
+{
+   unsigned i;
+
+   for (i = 0; input_config_bind_map[i].valid; i++)
+      if (string_is_equal(str, input_config_bind_map[i].base))
+         return i;
+
+   return RARCH_BIND_LIST_END;
+}
+
+void input_config_get_bind_string_joykey(
+      bool input_descriptor_label_show,
+      char *buf, const char *prefix,
+      const struct retro_keybind *bind, size_t size)
+{
+   if (GET_HAT_DIR(bind->joykey))
+   {
+      if (bind->joykey_label &&
+            !string_is_empty(bind->joykey_label)
+            && input_descriptor_label_show)
+         fill_pathname_join_delim_concat(buf, prefix,
+               bind->joykey_label, ' ', " (hat)", size);
+      else
+      {
+         const char *dir = "?";
+
+         switch (GET_HAT_DIR(bind->joykey))
+         {
+            case HAT_UP_MASK:
+               dir = "up";
+               break;
+            case HAT_DOWN_MASK:
+               dir = "down";
+               break;
+            case HAT_LEFT_MASK:
+               dir = "left";
+               break;
+            case HAT_RIGHT_MASK:
+               dir = "right";
+               break;
+            default:
+               break;
+         }
+         snprintf(buf, size, "%sHat #%u %s (%s)", prefix,
+               (unsigned)GET_HAT(bind->joykey), dir,
+               msg_hash_to_str(MENU_ENUM_LABEL_VALUE_NOT_AVAILABLE));
+      }
+   }
+   else
+   {
+      if (bind->joykey_label &&
+            !string_is_empty(bind->joykey_label)
+            && input_descriptor_label_show)
+         fill_pathname_join_delim_concat(buf, prefix,
+               bind->joykey_label, ' ', " (btn)", size);
+      else
+         snprintf(buf, size, "%s%u (%s)", prefix, (unsigned)bind->joykey,
+               msg_hash_to_str(MENU_ENUM_LABEL_VALUE_NOT_AVAILABLE));
+   }
+}
+
+void input_config_get_bind_string_joyaxis(
+      bool input_descriptor_label_show,
+      char *buf, const char *prefix,
+      const struct retro_keybind *bind, size_t size)
+{
+   if (bind->joyaxis_label &&
+         !string_is_empty(bind->joyaxis_label)
+         && input_descriptor_label_show)
+      fill_pathname_join_delim_concat(buf, prefix,
+            bind->joyaxis_label, ' ', " (axis)", size);
+   else
+   {
+      unsigned axis        = 0;
+      char dir             = '\0';
+      if (AXIS_NEG_GET(bind->joyaxis) != AXIS_DIR_NONE)
+      {
+         dir = '-';
+         axis = AXIS_NEG_GET(bind->joyaxis);
+      }
+      else if (AXIS_POS_GET(bind->joyaxis) != AXIS_DIR_NONE)
+      {
+         dir = '+';
+         axis = AXIS_POS_GET(bind->joyaxis);
+      }
+      snprintf(buf, size, "%s%c%u (%s)", prefix, dir, axis,
+            msg_hash_to_str(MENU_ENUM_LABEL_VALUE_NOT_AVAILABLE));
+   }
+}
