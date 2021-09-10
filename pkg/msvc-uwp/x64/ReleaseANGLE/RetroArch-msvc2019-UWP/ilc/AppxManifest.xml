@@ -7,10 +7,10 @@
 
     For more information on package manifest files, see http://go.microsoft.com/fwlink/?LinkID=241727
   -->
-  <Identity Name="57516RevSolutions.TestingRAasaGame" Publisher="CN=E23CCF16-EA3E-4B56-94BB-A822AEB10063" Version="5.0.0.0" ProcessorArchitecture="x64" />
+  <Identity Name="57516RevSolutions.RetroRevisited-Auto-update" Publisher="CN=E23CCF16-EA3E-4B56-94BB-A822AEB10063" Version="5.0.0.0" ProcessorArchitecture="x64" />
   <mp:PhoneIdentity PhoneProductId="4da8f7a9-2303-4b31-b24f-aaed9e17f978" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
-    <DisplayName>Testing RA as a Game</DisplayName>
+    <DisplayName>RetroRevisited - Auto-update</DisplayName>
     <PublisherDisplayName>Rev Solutions</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -26,9 +26,8 @@
   </Resources>
   <Applications>
     <Application Id="App" Executable="RetroArch-msvc2019-UWP.exe" EntryPoint="RetroArch.App">
-      <uap:VisualElements DisplayName="RA as a Game" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="RetroArch is a frontend for emulators, game engines and media players. It enables you to run classic games on a wide range of computers and consoles through its slick graphical interface. Settings are also unified so configuration is done once and for all. RetroArch has advanced features like shaders, netplay, rewinding, next-frame response times, and more!" BackgroundColor="transparent">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square310x310Logo="Assets\LargeTile.png" Square71x71Logo="Assets\SmallTile.png">
-        </uap:DefaultTile>
+      <uap:VisualElements DisplayName="RetroRevisited - Auto-update" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="RetroArch is a frontend for emulators, game engines and media players. It enables you to run classic games on a wide range of computers and consoles through its slick graphical interface. Settings are also unified so configuration is done once and for all. RetroArch has advanced features like shaders, netplay, rewinding, next-frame response times, and more!" BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square310x310Logo="Assets\LargeTile.png" Square71x71Logo="Assets\SmallTile.png"></uap:DefaultTile>
         <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#000000" />
       </uap:VisualElements>
     </Application>
