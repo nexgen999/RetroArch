@@ -23,11 +23,13 @@ variables:
   value: '$(build.SourcesDirectory)\RetroCert.pfx'
 
 steps:
-#- task: DownloadSecureFile@1
-  #name: mySecureFile
-  #displayName: 'Get the pfx file certificate'
-  #inputs:
-    #secureFile: 'RetroCert.pfx'
+
+- task: AzureKeyVault@2
+  inputs:
+    azureSubscription: 'Key Vault Connection'
+    KeyVaultName: 'NzSecrets'
+    SecretsFilter: 'publisher, publisherDisplayName'
+    RunAsPreJob: true
 
 - task: PowerShell@2
   inputs:
@@ -35,16 +37,9 @@ steps:
     script: |
     
       #Import the certificate included in the repo
-      Write-Host "Import Certificate" 
-      $pfxpath = '$(pfxpath)'
-      $password = 'test'
-      Add-Type -AssemblyName System.Security
-      $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-      $cert.Import($pfxpath, $password, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]"PersistKeySet")
-      $store = new-object system.security.cryptography.X509Certificates.X509Store -argumentlist "MY", CurrentUser
-      $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]"ReadWrite")
-      $store.Add($cert)
-      $store.Close()
+      New-SelfSignedCertificate -Type Custom -Subject $(publisher) -KeyUsage DigitalSignature -FriendlyName "GeneratedCert" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+      $Thumbprint = (Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object {$_.Subject -match '$(publisher)'}).Thumbprint;
+      (Get-Content -path ".\pkg\msvc-uwp\RetroArch-msvc2019-UWP\RetroArch-msvc2019-UWP.vcxproj" -Raw) -replace '97537639885375FFB2540E97CA4C388BED0FA9B7', $Thumbprint | Set-Content -Path ".\pkg\msvc-uwp\RetroArch-msvc2019-UWP\RetroArch-msvc2019-UWP.vcxproj"
 
 #Build the package
 - task: VSBuild@1
