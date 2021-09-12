@@ -19,10 +19,12 @@
 
 #include <math.h>
 #include <string/stdstring.h>
+#include <encodings/utf.h>
 #include <clamping.h>
 
 #include "input_driver.h"
 #include "input_keymaps.h"
+#include "input_osk.h"
 
 #ifdef HAVE_NETWORKING
 #include <net/net_compat.h>
@@ -1827,6 +1829,114 @@ unsigned input_config_translate_str_to_bind_id(const char *str)
    return RARCH_BIND_LIST_END;
 }
 
+void input_config_get_bind_string(
+      void *settings_data,
+      char *buf,
+      const struct retro_keybind *bind,
+      const struct retro_keybind *auto_bind,
+      size_t size)
+{
+   settings_t *settings                 = (settings_t*)settings_data;
+   int delim                            = 0;
+   bool  input_descriptor_label_show    =
+      settings->bools.input_descriptor_label_show;
+
+   *buf                                 = '\0';
+
+   if      (bind      && bind->joykey  != NO_BTN)
+      input_config_get_bind_string_joykey(
+            input_descriptor_label_show, buf, "", bind, size);
+   else if (bind      && bind->joyaxis != AXIS_NONE)
+      input_config_get_bind_string_joyaxis(
+            input_descriptor_label_show,
+            buf, "", bind, size);
+   else if (auto_bind && auto_bind->joykey != NO_BTN)
+      input_config_get_bind_string_joykey(
+            input_descriptor_label_show, buf, "Auto: ", auto_bind, size);
+   else if (auto_bind && auto_bind->joyaxis != AXIS_NONE)
+      input_config_get_bind_string_joyaxis(
+            input_descriptor_label_show,
+            buf, "Auto: ", auto_bind, size);
+
+   if (*buf)
+      delim = 1;
+
+#ifndef RARCH_CONSOLE
+   {
+      char key[64];
+      key[0] = '\0';
+
+      input_keymaps_translate_rk_to_str(bind->key, key, sizeof(key));
+      if (     key[0] == 'n'
+            && key[1] == 'u'
+            && key[2] == 'l'
+            && key[3] == '\0'
+         )
+         *key = '\0';
+      /*empty?*/
+      if (*key != '\0')
+      {
+         char keybuf[64];
+
+         keybuf[0] = '\0';
+
+         if (delim)
+            strlcat(buf, ", ", size);
+         snprintf(keybuf, sizeof(keybuf),
+               msg_hash_to_str(MENU_ENUM_LABEL_VALUE_INPUT_KEY), key);
+         strlcat(buf, keybuf, size);
+         delim = 1;
+      }
+   }
+#endif
+
+   if (bind->mbutton != NO_BTN)
+   {
+      int tag = 0;
+      switch (bind->mbutton)
+      {
+         case RETRO_DEVICE_ID_MOUSE_LEFT:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_LEFT;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_RIGHT:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_RIGHT;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_MIDDLE:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_MIDDLE;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_BUTTON_4:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_BUTTON4;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_BUTTON_5:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_BUTTON5;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_WHEELUP:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_WHEEL_UP;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_WHEELDOWN:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_WHEEL_DOWN;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_HORIZ_WHEELUP:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_HORIZ_WHEEL_UP;
+            break;
+         case RETRO_DEVICE_ID_MOUSE_HORIZ_WHEELDOWN:
+            tag = MENU_ENUM_LABEL_VALUE_INPUT_MOUSE_HORIZ_WHEEL_DOWN;
+            break;
+      }
+
+      if (tag != 0)
+      {
+         if (delim)
+            strlcat(buf, ", ", size);
+         strlcat(buf, msg_hash_to_str((enum msg_hash_enums)tag), size);
+      }
+   }
+
+   /*completely empty?*/
+   if (*buf == '\0')
+      strlcat(buf, "---", size);
+}
+
 void input_config_get_bind_string_joykey(
       bool input_descriptor_label_show,
       char *buf, const char *prefix,
@@ -1904,5 +2014,79 @@ void input_config_get_bind_string_joyaxis(
       }
       snprintf(buf, size, "%s%c%u (%s)", prefix, dir, axis,
             msg_hash_to_str(MENU_ENUM_LABEL_VALUE_NOT_AVAILABLE));
+   }
+}
+
+void osk_update_last_codepoint(
+      unsigned *last_codepoint,
+      unsigned *last_codepoint_len,
+      const char *word)
+{
+   const char *letter         = word;
+   const char    *pos         = letter;
+
+   if (word[0] == 0)
+   {
+      *last_codepoint         = 0;
+      *last_codepoint_len     = 0;
+      return;
+   }
+
+   for (;;)
+   {
+      unsigned codepoint      = utf8_walk(&letter);
+      if (letter[0] == 0)
+      {
+         *last_codepoint      = codepoint;
+         *last_codepoint_len  = (unsigned)(letter - pos);
+         break;
+      }
+      pos                     = letter;
+   }
+}
+
+void input_event_osk_append(
+      input_keyboard_line_t *keyboard_line,
+      enum osk_type *osk_idx,
+      unsigned *osk_last_codepoint,
+      unsigned *osk_last_codepoint_len,
+      int ptr,
+      bool show_symbol_pages,
+      const char *word)
+{
+#ifdef HAVE_LANGEXTRA
+   if (string_is_equal(word, "\xe2\x87\xa6")) /* backspace character */
+      input_keyboard_event(true, '\x7f', '\x7f', 0, RETRO_DEVICE_KEYBOARD);
+   else if (string_is_equal(word, "\xe2\x8f\x8e")) /* return character */
+      input_keyboard_event(true, '\n', '\n', 0, RETRO_DEVICE_KEYBOARD);
+   else
+   if (string_is_equal(word, "\xe2\x87\xa7")) /* up arrow */
+      *osk_idx = OSK_UPPERCASE_LATIN;
+   else if (string_is_equal(word, "\xe2\x87\xa9")) /* down arrow */
+      *osk_idx = OSK_LOWERCASE_LATIN;
+   else if (string_is_equal(word,"\xe2\x8a\x95")) /* plus sign (next button) */
+#else
+   if (string_is_equal(word, "Bksp"))
+      input_keyboard_event(true, '\x7f', '\x7f', 0, RETRO_DEVICE_KEYBOARD);
+   else if (string_is_equal(word, "Enter"))
+      input_keyboard_event(true, '\n', '\n', 0, RETRO_DEVICE_KEYBOARD);
+   else
+   if (string_is_equal(word, "Upper"))
+      *osk_idx = OSK_UPPERCASE_LATIN;
+   else if (string_is_equal(word, "Lower"))
+      *osk_idx = OSK_LOWERCASE_LATIN;
+   else if (string_is_equal(word, "Next"))
+#endif
+      if (*osk_idx < (show_symbol_pages ? OSK_TYPE_LAST - 1 : OSK_SYMBOLS_PAGE1))
+         *osk_idx = (enum osk_type)(*osk_idx + 1);
+      else
+         *osk_idx = ((enum osk_type)(OSK_TYPE_UNKNOWN + 1));
+   else
+   {
+      input_keyboard_line_append(keyboard_line, word);
+      osk_update_last_codepoint(
+            osk_last_codepoint,
+            osk_last_codepoint_len,
+            word);
    }
 }
