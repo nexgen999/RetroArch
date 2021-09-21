@@ -6,7 +6,8 @@
 trigger: 
 - master
 
-pool: 'Remote Server'
+pool: 
+  name: 'Remote Server'
   #vmImage: 'Default'
 
 variables:
