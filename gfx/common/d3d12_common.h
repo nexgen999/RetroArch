@@ -44,6 +44,8 @@ typedef ID3D12GraphicsCommandList*                D3D12GraphicsCommandList;
 typedef ID3D12CommandQueue*                       D3D12CommandQueue;
 typedef ID3D12Device*                             D3D12Device;
 typedef ID3D12PipelineLibrary*                    D3D12PipelineLibrary;
+typedef D3D12_RESOURCE_ALLOCATION_INFO *          D3D12_RESOURCE_ALLOCATION_INFO;
+typedef D3D12_HEAP_PROPERTIES *                   D3D12_HEAP_PROPERTIES;
 #ifdef DEBUG
 typedef ID3D12Debug*                              D3D12Debug;
 typedef ID3D12DebugDevice*                        D3D12DebugDevice;
