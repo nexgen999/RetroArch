@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool:
-  vmImage: 'default'
+  vmImage: 'Hosted Agent'
 
 variables:
 - group: uwp-pipeline
