@@ -74,6 +74,30 @@ HRESULT ( STDMETHODCALLTYPE *StorePipeline )(
    _In_opt_  LPCWSTR pName,
    _In_  ID3D12PipelineState *pPipeline);
 
+void ( STDMETHODCALLTYPE *CopyDescriptors )( 
+   ID3D12Device * This,
+   _In_  UINT NumDestDescriptorRanges,
+   _In_reads_(NumDestDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts,
+   _In_reads_opt_(NumDestDescriptorRanges)  const UINT *pDestDescriptorRangeSizes,
+   _In_  UINT NumSrcDescriptorRanges,
+   _In_reads_(NumSrcDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts,
+   _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
+   _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+
+void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
+   ID3D12Device * This,
+   _In_  UINT NumDescriptors,
+   _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
+   _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
+   _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+
+HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
+   ID3D12Device * This,
+   _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
+   _In_opt_  ID3D12RootSignature *pRootSignature,
+   REFIID riid,
+   _COM_Outptr_opt_  void **ppvCommandSignature);
+
 static INLINE ULONG D3D12Release(void* object)
 {
    return ((ID3D12Object*)object)->lpVtbl->Release((ID3D12Object*)object);
