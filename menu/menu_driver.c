@@ -53,6 +53,7 @@
 #include "../input/input_driver.h"
 #include "../input/input_remapping.h"
 #include "../performance_counters.h"
+#include "../version.h"
 
 struct key_desc key_descriptors[RARCH_MAX_KEYS] =
 {
@@ -2811,6 +2812,119 @@ void menu_shader_manager_apply_changes(
 
    menu_shader_manager_set_preset(NULL, type, NULL, true);
 }
+
+/**
+ * menu_shader_manager_save_preset:
+ * @shader                   : shader to save
+ * @type                     : type of shader preset which determines save path
+ * @basename                 : basename of preset
+ * @apply                    : immediately set preset after saving
+ *
+ * Save a shader preset to disk.
+ **/
+bool menu_shader_manager_save_preset(const struct video_shader *shader,
+      const char *basename,
+      const char *dir_video_shader,
+      const char *dir_menu_config,
+      bool apply)
+{
+   char config_directory[PATH_MAX_LENGTH];
+   const char *preset_dirs[3]  = {0};
+   settings_t *settings        = config_get_ptr();
+
+   config_directory[0]         = '\0';
+
+   if (!path_is_empty(RARCH_PATH_CONFIG))
+      fill_pathname_basedir(
+            config_directory,
+            path_get(RARCH_PATH_CONFIG),
+            sizeof(config_directory));
+
+   preset_dirs[0] = dir_video_shader;
+   preset_dirs[1] = dir_menu_config;
+   preset_dirs[2] = config_directory;
+
+   return menu_shader_manager_save_preset_internal(
+         settings->bools.video_shader_preset_save_reference_enable,
+         shader, basename,
+         dir_video_shader,
+         apply,
+         preset_dirs,
+         ARRAY_SIZE(preset_dirs));
+}
+
+/**
+ * menu_shader_manager_remove_auto_preset:
+ * @type                     : type of shader preset to delete
+ *
+ * Deletes an auto-shader.
+ **/
+bool menu_shader_manager_remove_auto_preset(
+      enum auto_shader_type type,
+      const char *dir_video_shader,
+      const char *dir_menu_config)
+{
+   struct retro_system_info *system = &runloop_state_get_ptr()->system.info;
+   settings_t *settings             = config_get_ptr();
+   return menu_shader_manager_operate_auto_preset(
+         system, settings->bools.video_shader_preset_save_reference_enable,
+         AUTO_SHADER_OP_REMOVE, NULL,
+         dir_video_shader,
+         dir_menu_config,
+         type, false);
+}
+
+/**
+ * menu_shader_manager_auto_preset_exists:
+ * @type                     : type of shader preset
+ *
+ * Tests if an auto-shader of the given type exists.
+ **/
+bool menu_shader_manager_auto_preset_exists(
+      enum auto_shader_type type,
+      const char *dir_video_shader,
+      const char *dir_menu_config)
+{
+   struct retro_system_info *system = &runloop_state_get_ptr()->system.info;
+   settings_t *settings             = config_get_ptr();
+   return menu_shader_manager_operate_auto_preset(
+         system, settings->bools.video_shader_preset_save_reference_enable,
+         AUTO_SHADER_OP_EXISTS, NULL,
+         dir_video_shader,
+         dir_menu_config,
+         type, false);
+}
+
+/**
+ * menu_shader_manager_save_auto_preset:
+ * @shader                   : shader to save
+ * @type                     : type of shader preset which determines save path
+ * @apply                    : immediately set preset after saving
+ *
+ * Save a shader as an auto-shader to it's appropriate path:
+ *    SHADER_PRESET_GLOBAL: <target dir>/global
+ *    SHADER_PRESET_CORE:   <target dir>/<core name>/<core name>
+ *    SHADER_PRESET_PARENT: <target dir>/<core name>/<parent>
+ *    SHADER_PRESET_GAME:   <target dir>/<core name>/<game name>
+ * Needs to be consistent with load_shader_preset()
+ * Auto-shaders will be saved as a reference if possible
+ **/
+bool menu_shader_manager_save_auto_preset(
+      const struct video_shader *shader,
+      enum auto_shader_type type,
+      const char *dir_video_shader,
+      const char *dir_menu_config,
+      bool apply)
+{
+   struct retro_system_info *system = &runloop_state_get_ptr()->system.info;
+   settings_t *settings             = config_get_ptr();
+   return menu_shader_manager_operate_auto_preset(
+         system, settings->bools.video_shader_preset_save_reference_enable,
+         AUTO_SHADER_OP_SAVE, shader,
+         dir_video_shader,
+         dir_menu_config,
+         type, apply);
+}
 #endif
 
 enum action_iterate_type action_iterate_type(const char *label)
@@ -4978,4 +5092,73 @@ void menu_dialog_set_current_id(unsigned id)
    menu_dialog_t        *p_dialog = &menu_st->dialog_st;
 
    p_dialog->current_id    = id;
+}
+
+#if defined(_MSC_VER)
+static const char * msvc_vercode_to_str(const unsigned vercode)
+{
+   switch (vercode)
+   {
+      case 1200:
+         return " msvc6";
+      case 1300:
+         return " msvc2002";
+      case 1310:
+         return " msvc2003";
+      case 1400:
+         return " msvc2005";
+      case 1500:
+         return " msvc2008";
+      case 1600:
+         return " msvc2010";
+      case 1700:
+         return " msvc2012";
+      case 1800:
+         return " msvc2013";
+      case 1900:
+         return " msvc2015";
+      default:
+         if (vercode >= 1910 && vercode < 1920)
+            return " msvc2017";
+         else if (vercode >= 1920 && vercode < 2000)
+            return " msvc2019";
+         break;
+   }
+
+   return "";
+}
+#endif
+
+/* Sets 's' to the name of the current core
+ * (shown at the top of the UI). */
+int menu_entries_get_core_title(char *s, size_t len)
+{
+   struct retro_system_info *system  = &runloop_state_get_ptr()->system.info;
+   const char *core_name             = 
+       (system && !string_is_empty(system->library_name))
+      ? system->library_name
+      : msg_hash_to_str(MENU_ENUM_LABEL_VALUE_NO_CORE);
+   const char *core_version          = 
+      (system && system->library_version) 
+      ? system->library_version 
+      : "";
+
+   if (!string_is_empty(core_version))
+   {
+#if defined(_MSC_VER)
+      snprintf(s, len, PACKAGE_VERSION "%s"        " - %s (%s)", msvc_vercode_to_str(_MSC_VER), core_name, core_version);
+#else
+      snprintf(s, len, PACKAGE_VERSION             " - %s (%s)",                                core_name, core_version);
+#endif
+   }
+   else
+   {
+#if defined(_MSC_VER)
+      snprintf(s, len, PACKAGE_VERSION "%s"        " - %s", msvc_vercode_to_str(_MSC_VER), core_name);
+#else
+      snprintf(s, len, PACKAGE_VERSION             " - %s",                                core_name);
+#endif
+   }
+
+   return 0;
 }

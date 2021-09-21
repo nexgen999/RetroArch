@@ -1,6 +1,6 @@
 /*  RetroArch - A frontend for libretro.
  *  Copyright (C) 2010-2014 - Hans-Kristian Arntzen
- *  Copyright (C) 2011-2016 - Daniel De Matteis
+ *  Copyright (C) 2011-2021 - Daniel De Matteis
  *  Copyright (C) 2016-2019 - Brad Parker
  *
  *  RetroArch is free software: you can redistribute it and/or modify it under the terms
@@ -50,6 +50,8 @@
 #ifdef HAVE_MENU
 #include "menu/menu_defines.h"
 #endif
+
+#include "runloop.h"
 
 RETRO_BEGIN_DECLS
 
@@ -421,16 +423,9 @@ void runloop_msg_queue_push(const char *msg,
       char *title,
       enum message_queue_icon icon, enum message_queue_category category);
 
-void runloop_get_status(bool *is_paused, bool *is_idle, bool *is_slowmotion,
-      bool *is_perfcnt_enable);
-
 void retroarch_menu_running(void);
 
 void retroarch_menu_running_finished(bool quit);
-
-rarch_system_info_t *runloop_get_system_info(void);
-
-struct retro_system_info *runloop_get_libretro_system_info(void);
 
 void retroarch_force_video_driver_fallback(const char *driver);
 
@@ -2096,6 +2091,8 @@ typedef enum apple_view_type
 } apple_view_type_t;
 
 bool retroarch_get_current_savestate_path(char *path, size_t len);
+
+runloop_state_t *runloop_state_get_ptr(void);
 
 RETRO_END_DECLS
 

@@ -137,6 +137,7 @@
 #include "config.def.keybinds.h"
 
 #include "runtime_file.h"
+#include "runloop.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -282,6 +283,14 @@
 #ifdef HAVE_LAKKA
 #include "lakka.h"
 #endif
+
+static runloop_core_status_msg_t runloop_core_status_msg         =
+{
+   0,
+   0.0f,
+   "",
+   false
+};
 
 static runloop_state_t runloop_state;
 
@@ -1479,70 +1488,6 @@ int generic_menu_entry_action(
    return ret;
 }
 
-#if defined(_MSC_VER)
-static const char * msvc_vercode_to_str(const unsigned vercode)
-{
-   switch (vercode)
-   {
-      case 1200:
-         return " msvc6";
-      case 1300:
-         return " msvc2002";
-      case 1310:
-         return " msvc2003";
-      case 1400:
-         return " msvc2005";
-      case 1500:
-         return " msvc2008";
-      case 1600:
-         return " msvc2010";
-      case 1700:
-         return " msvc2012";
-      case 1800:
-         return " msvc2013";
-      case 1900:
-         return " msvc2015";
-      default:
-         if (vercode >= 1910 && vercode < 1920)
-            return " msvc2017";
-         else if (vercode >= 1920 && vercode < 2000)
-            return " msvc2019";
-         break;
-   }
-
-   return "";
-}
-#endif
-
-/* Sets 's' to the name of the current core
- * (shown at the top of the UI). */
-int menu_entries_get_core_title(char *s, size_t len)
-{
-   struct retro_system_info    *system = &runloop_state.system.info;
-   const char *core_name               = (system && !string_is_empty(system->library_name))
-      ? system->library_name
-      : msg_hash_to_str(MENU_ENUM_LABEL_VALUE_NO_CORE);
-   const char *core_version            = (system && system->library_version) ? system->library_version : "";
-   if (!string_is_empty(core_version))
-   {
-#if defined(_MSC_VER)
-      snprintf(s, len, PACKAGE_VERSION "%s"        " - %s (%s)", msvc_vercode_to_str(_MSC_VER), core_name, core_version);
-#else
-      snprintf(s, len, PACKAGE_VERSION             " - %s (%s)",                                core_name, core_version);
-#endif
-   }
-   else
-   {
-#if defined(_MSC_VER)
-      snprintf(s, len, PACKAGE_VERSION "%s"        " - %s", msvc_vercode_to_str(_MSC_VER), core_name);
-#else
-      snprintf(s, len, PACKAGE_VERSION             " - %s",                                core_name);
-#endif
-   }
-
-   return 0;
-}
-
 #ifdef HAVE_COMPRESSION
 /* This function gets called at first startup on Android/iOS
  * when we need to extract the APK contents/zip file. This
@@ -1552,8 +1497,7 @@ void bundle_decompressed(retro_task_t *task,
       void *task_data,
       void *user_data, const char *err)
 {
-   struct rarch_state *p_rarch = &rarch_st;
-   settings_t        *settings = p_rarch->configuration_settings;
+   settings_t        *settings = config_get_ptr();
    decompress_task_data_t *dec = (decompress_task_data_t*)task_data;
 
    if (err)
@@ -2207,7 +2151,7 @@ bool menu_shader_manager_set_preset(struct video_shader *shader,
    bool refresh                  = false;
    bool ret                      = false;
    struct rarch_state  *p_rarch  = &rarch_st;
-   settings_t *settings          = p_rarch->configuration_settings;
+   settings_t *settings          = config_get_ptr();
 
    if (apply && !retroarch_apply_shader(p_rarch, settings,
             type, preset_path, true))
@@ -2249,123 +2193,6 @@ clear:
    menu_shader_manager_clear_num_passes(shader);
    command_event(CMD_EVENT_SHADER_PRESET_LOADED, NULL);
    return ret;
-}
-
-/**
- * menu_shader_manager_save_auto_preset:
- * @shader                   : shader to save
- * @type                     : type of shader preset which determines save path
- * @apply                    : immediately set preset after saving
- *
- * Save a shader as an auto-shader to it's appropriate path:
- *    SHADER_PRESET_GLOBAL: <target dir>/global
- *    SHADER_PRESET_CORE:   <target dir>/<core name>/<core name>
- *    SHADER_PRESET_PARENT: <target dir>/<core name>/<parent>
- *    SHADER_PRESET_GAME:   <target dir>/<core name>/<game name>
- * Needs to be consistent with load_shader_preset()
- * Auto-shaders will be saved as a reference if possible
- **/
-bool menu_shader_manager_save_auto_preset(
-      const struct video_shader *shader,
-      enum auto_shader_type type,
-      const char *dir_video_shader,
-      const char *dir_menu_config,
-      bool apply)
-{
-   struct rarch_state *p_rarch      = &rarch_st;
-   struct retro_system_info *system = &runloop_state.system.info;
-   settings_t *settings             = p_rarch->configuration_settings;
-   return menu_shader_manager_operate_auto_preset(
-         system, settings->bools.video_shader_preset_save_reference_enable,
-         AUTO_SHADER_OP_SAVE, shader,
-         dir_video_shader,
-         dir_menu_config,
-         type, apply);
-}
-
-/**
- * menu_shader_manager_save_preset:
- * @shader                   : shader to save
- * @type                     : type of shader preset which determines save path
- * @basename                 : basename of preset
- * @apply                    : immediately set preset after saving
- *
- * Save a shader preset to disk.
- **/
-bool menu_shader_manager_save_preset(const struct video_shader *shader,
-      const char *basename,
-      const char *dir_video_shader,
-      const char *dir_menu_config,
-      bool apply)
-{
-   char config_directory[PATH_MAX_LENGTH];
-   const char *preset_dirs[3]  = {0};
-   struct rarch_state *p_rarch = &rarch_st;
-   settings_t *settings        = p_rarch->configuration_settings;
-
-   config_directory[0]         = '\0';
-
-   if (!path_is_empty(RARCH_PATH_CONFIG))
-      fill_pathname_basedir(
-            config_directory,
-            path_get(RARCH_PATH_CONFIG),
-            sizeof(config_directory));
-
-   preset_dirs[0] = dir_video_shader;
-   preset_dirs[1] = dir_menu_config;
-   preset_dirs[2] = config_directory;
-
-   return menu_shader_manager_save_preset_internal(
-         settings->bools.video_shader_preset_save_reference_enable,
-         shader, basename,
-         dir_video_shader,
-         apply,
-         preset_dirs,
-         ARRAY_SIZE(preset_dirs));
-}
-
-/**
- * menu_shader_manager_remove_auto_preset:
- * @type                     : type of shader preset to delete
- *
- * Deletes an auto-shader.
- **/
-bool menu_shader_manager_remove_auto_preset(
-      enum auto_shader_type type,
-      const char *dir_video_shader,
-      const char *dir_menu_config)
-{
-   struct rarch_state *p_rarch      = &rarch_st;
-   struct retro_system_info *system = &runloop_state.system.info;
-   settings_t *settings             = p_rarch->configuration_settings;
-   return menu_shader_manager_operate_auto_preset(
-         system, settings->bools.video_shader_preset_save_reference_enable,
-         AUTO_SHADER_OP_REMOVE, NULL,
-         dir_video_shader,
-         dir_menu_config,
-         type, false);
-}
-
-/**
- * menu_shader_manager_auto_preset_exists:
- * @type                     : type of shader preset
- *
- * Tests if an auto-shader of the given type exists.
- **/
-bool menu_shader_manager_auto_preset_exists(
-      enum auto_shader_type type,
-      const char *dir_video_shader,
-      const char *dir_menu_config)
-{
-   struct rarch_state *p_rarch      = &rarch_st;
-   struct retro_system_info *system = &runloop_state.system.info;
-   settings_t *settings             = p_rarch->configuration_settings;
-   return menu_shader_manager_operate_auto_preset(
-         system, settings->bools.video_shader_preset_save_reference_enable,
-         AUTO_SHADER_OP_EXISTS, NULL,
-         dir_video_shader,
-         dir_menu_config,
-         type, false);
 }
 #endif
 
@@ -5354,13 +5181,13 @@ bool command_write_memory(command_t *cmd, const char *arg)
 }
 #endif
 
+#if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
 static bool retroarch_apply_shader(
       struct rarch_state *p_rarch,
       settings_t *settings,
       enum rarch_shader_type type,
       const char *preset_path, bool message)
 {
-#if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
    char msg[256];
    const char      *core_name   = runloop_state.system.info.library_name;
    const char      *preset_file = NULL;
@@ -5445,11 +5272,9 @@ static bool retroarch_apply_shader(
    runloop_msg_queue_push(
          msg, 1, 180, true, NULL,
          MESSAGE_QUEUE_ICON_DEFAULT, MESSAGE_QUEUE_CATEGORY_ERROR);
-#endif
    return false;
 }
 
-#if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
 bool command_set_shader(command_t *cmd, const char *arg)
 {
    enum  rarch_shader_type type = video_shader_parse_type(arg);
@@ -27989,15 +27814,6 @@ void runloop_msg_queue_push(const char *msg,
    RUNLOOP_MSG_QUEUE_UNLOCK(runloop_state);
 }
 
-void runloop_get_status(bool *is_paused, bool *is_idle,
-      bool *is_slowmotion, bool *is_perfcnt_enable)
-{
-   *is_paused                  = runloop_state.paused;
-   *is_idle                    = runloop_state.idle;
-   *is_slowmotion              = runloop_state.slowmotion;
-   *is_perfcnt_enable          = runloop_state.perfcnt_enable;
-}
-
 #ifdef HAVE_MENU
 /* Display the libretro core's framebuffer onscreen. */
 static bool menu_display_libretro(
@@ -28533,7 +28349,7 @@ static enum runloop_state runloop_check_state(
          }
       }
 
-      if (TIME_TO_EXIT(trig_quit_key))
+      if (RUNLOOP_TIME_TO_EXIT(trig_quit_key))
       {
          bool quit_runloop           = false;
 #ifdef HAVE_SCREENSHOTS
@@ -29742,14 +29558,9 @@ end:
    return 0;
 }
 
-rarch_system_info_t *runloop_get_system_info(void)
+runloop_state_t *runloop_state_get_ptr(void)
 {
-   return &runloop_state.system;
-}
-
-struct retro_system_info *runloop_get_libretro_system_info(void)
-{
-   return &runloop_state.system.info;
+   return &runloop_state;
 }
 
 void retroarch_force_video_driver_fallback(const char *driver)
