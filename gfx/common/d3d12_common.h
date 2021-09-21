@@ -50,6 +50,12 @@ typedef ID3D12DebugCommandQueue*                  D3D12DebugCommandQueue;
 typedef ID3D12DebugCommandList*                   D3D12DebugCommandList;
 typedef ID3D12InfoQueue*                          D3D12InfoQueue;
 
+D3D12_RESOURCE_ALLOCATION_INFO(STDMETHODCALLTYPE* GetResourceAllocationInfo)(
+   ID3D12Device* This,
+   _In_  UINT visibleMask,
+   _In_  UINT numResourceDescs,
+   _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC* pResourceDescs);
+
 static INLINE ULONG D3D12Release(void* object)
 {
    return ((ID3D12Object*)object)->lpVtbl->Release((ID3D12Object*)object);
