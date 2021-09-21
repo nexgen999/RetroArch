@@ -6,8 +6,8 @@
 trigger: 
 - master
 
-pool:
-  vmImage: 'Default'
+pool: 'Default'
+  #vmImage: 'Default'
 
 variables:
 - group: uwp-pipeline
