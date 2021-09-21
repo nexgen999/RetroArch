@@ -2484,7 +2484,8 @@ static void ozone_draw_cursor_slice(
       unsigned video_height,
       int x_offset,
       unsigned width, unsigned height,
-      size_t y, float alpha)
+      size_t y, float alpha,
+      math_matrix_4x4 *mymat)
 {
    float scale_factor    = ozone->last_scale_factor;
    int slice_x           = x_offset - 12 * scale_factor;
@@ -2520,7 +2521,8 @@ static void ozone_draw_cursor_slice(
          video_width, video_height,
          ozone->theme_dynamic.cursor_alpha,
          20, scale_factor,
-         ozone->theme->textures[OZONE_THEME_TEXTURE_CURSOR_NO_BORDER]
+         ozone->theme->textures[OZONE_THEME_TEXTURE_CURSOR_NO_BORDER],
+         mymat
          );
 
    /* Tainted border */
@@ -2537,7 +2539,8 @@ static void ozone_draw_cursor_slice(
          video_width, video_height,
          ozone->theme_dynamic.cursor_border,
          20, scale_factor,
-         ozone->textures[OZONE_TEXTURE_CURSOR_BORDER]
+         ozone->textures[OZONE_TEXTURE_CURSOR_BORDER],
+         mymat
          );
 
    if (dispctx && dispctx->blend_end)
@@ -2650,7 +2653,8 @@ static void ozone_draw_cursor(
       unsigned video_height,
       int x_offset,
       unsigned width, unsigned height,
-      size_t y, float alpha)
+      size_t y, float alpha,
+      math_matrix_4x4 *mymat)
 {
    int new_x    = x_offset;
    size_t new_y = y;
@@ -2665,7 +2669,8 @@ static void ozone_draw_cursor(
             p_disp,
             userdata,
             video_width, video_height,
-            new_x, width, height, new_y, alpha);
+            new_x, width, height, new_y, alpha,
+            mymat);
    else
       ozone_draw_cursor_fallback(ozone,
             p_disp,
@@ -2730,14 +2735,15 @@ static void ozone_draw_sidebar(
 
    horizontal_list_size           = (unsigned)ozone->horizontal_list.size;
 
-   gfx_display_scissor_begin(
-         p_disp,
-         userdata,
-         video_width, video_height,
-         0,
-         ozone->dimensions.header_height + ozone->dimensions.spacer_1px,
-         (unsigned) ozone->dimensions_sidebar_width,
-         video_height - ozone->dimensions.header_height - ozone->dimensions.footer_height - ozone->dimensions.spacer_1px);
+   if (p_disp->dispctx && p_disp->dispctx->scissor_begin)
+      gfx_display_scissor_begin(
+            p_disp,
+            userdata,
+            video_width, video_height,
+            0,
+            ozone->dimensions.header_height + ozone->dimensions.spacer_1px,
+            (unsigned) ozone->dimensions_sidebar_width,
+            video_height - ozone->dimensions.header_height - ozone->dimensions.footer_height - ozone->dimensions.spacer_1px);
 
    /* Background */
    sidebar_height = video_height - ozone->dimensions.header_height - ozone->dimensions.sidebar_gradient_height * 2 - ozone->dimensions.footer_height;
@@ -2825,7 +2831,8 @@ static void ozone_draw_sidebar(
             entry_width - ozone->dimensions.spacer_5px,
             ozone->dimensions.sidebar_entry_height + ozone->dimensions.spacer_1px,
             selection_y + ozone->animations.scroll_y_sidebar,
-            ozone->animations.cursor_alpha);
+            ozone->animations.cursor_alpha,
+            mymat);
 
    if (ozone->cursor_in_sidebar_old)
       ozone_draw_cursor(
@@ -2838,7 +2845,8 @@ static void ozone_draw_sidebar(
             entry_width - ozone->dimensions.spacer_5px,
             ozone->dimensions.sidebar_entry_height + ozone->dimensions.spacer_1px,
             selection_old_y + ozone->animations.scroll_y_sidebar,
-            1-ozone->animations.cursor_alpha);
+            1-ozone->animations.cursor_alpha,
+            mymat);
 
    /* Menu tabs */
    y = ozone->dimensions.header_height + ozone->dimensions.spacer_1px + ozone->dimensions.sidebar_padding_vertical;
@@ -4519,7 +4527,8 @@ border_iterate:
             entry_width - ozone->dimensions.spacer_5px,
             button_height + ozone->dimensions.spacer_1px,
             selection_y + scroll_y,
-            ozone->animations.cursor_alpha * alpha);
+            ozone->animations.cursor_alpha * alpha,
+            mymat);
 
    /* Old*/
    if (!ozone->cursor_in_sidebar_old)
@@ -4538,7 +4547,8 @@ border_iterate:
             entry_width - ozone->dimensions.spacer_5px,
             button_height + ozone->dimensions.spacer_1px,
             old_selection_y + scroll_y,
-            (1-ozone->animations.cursor_alpha) * alpha);
+            (1-ozone->animations.cursor_alpha) * alpha,
+            mymat);
 
    /* Icons + text */
    y = ozone->dimensions.header_height + ozone->dimensions.spacer_1px + ozone->dimensions.entry_padding_vertical;
@@ -5573,7 +5583,8 @@ static void ozone_draw_messagebox(
       void *userdata,
       unsigned video_width,
       unsigned video_height,
-      const char *message)
+      const char *message,
+      math_matrix_4x4 *mymat)
 {
    unsigned i, y_position;
    char wrapped_message[MENU_SUBLABEL_MAX_LENGTH];
@@ -5671,7 +5682,8 @@ static void ozone_draw_messagebox(
             width, height,
             ozone->theme_dynamic.message_background,
             16, scale_factor,
-            ozone->icons_textures[OZONE_ENTRIES_ICONS_TEXTURE_DIALOG_SLICE]
+            ozone->icons_textures[OZONE_ENTRIES_ICONS_TEXTURE_DIALOG_SLICE],
+            mymat
             );
    }
 
@@ -9226,15 +9238,22 @@ static void ozone_frame(void *data, video_frame_info_t *video_info)
             &mymat);
 
    /* Menu entries */
-   gfx_display_scissor_begin(p_disp,
-         userdata,
-         video_width,
-         video_height,
-         ozone->sidebar_offset + (unsigned) ozone->dimensions_sidebar_width,
-         ozone->dimensions.header_height + ozone->dimensions.spacer_1px,
-         video_width - (unsigned) ozone->dimensions_sidebar_width 
-         + (-ozone->sidebar_offset),
-         video_height - ozone->dimensions.header_height - ozone->dimensions.footer_height - ozone->dimensions.spacer_1px);
+   if (p_disp->dispctx && p_disp->dispctx->scissor_begin)
+      gfx_display_scissor_begin(p_disp,
+            userdata,
+            video_width,
+            video_height,
+              ozone->sidebar_offset 
+            + (unsigned)ozone->dimensions_sidebar_width,
+              ozone->dimensions.header_height 
+            + ozone->dimensions.spacer_1px,
+            video_width 
+            - (unsigned) ozone->dimensions_sidebar_width 
+            + (-ozone->sidebar_offset),
+              video_height 
+            - ozone->dimensions.header_height 
+            - ozone->dimensions.footer_height 
+            - ozone->dimensions.spacer_1px);
 
    /* Current list */
    ozone_draw_entries(
@@ -9372,7 +9391,8 @@ static void ozone_frame(void *data, video_frame_info_t *video_info)
                userdata,
                video_width,
                video_height,
-               ozone->pending_message);
+               ozone->pending_message,
+               &mymat);
 
       /* Flush second layer of text */
       ozone_font_flush(video_width, video_height, &ozone->fonts.footer);
