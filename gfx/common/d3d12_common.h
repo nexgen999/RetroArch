@@ -64,6 +64,16 @@ D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )(
    _In_  UINT numResourceDescs,
    _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
 
+D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
+   ID3D12Device * This,
+   _In_  UINT nodeMask,
+   D3D12_HEAP_TYPE heapType);
+
+HRESULT ( STDMETHODCALLTYPE *StorePipeline )( 
+   ID3D12PipelineLibrary * This,
+   _In_opt_  LPCWSTR pName,
+   _In_  ID3D12PipelineState *pPipeline);
+
 static INLINE ULONG D3D12Release(void* object)
 {
    return ((ID3D12Object*)object)->lpVtbl->Release((ID3D12Object*)object);
