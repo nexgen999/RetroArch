@@ -437,6 +437,7 @@ struct menu_state
    menu_handle_t *driver_data;
    void *userdata;
    const menu_ctx_driver_t *driver_ctx;
+   const char **input_dialog_keyboard_buffer;
 
    struct
    {
@@ -455,15 +456,30 @@ struct menu_state
       unsigned acceleration;
    } scroll;
 
-   /* Storage container for current menu datetime
-    * representation string */
-   char datetime_cache[255];
+   /* unsigned alignment */
+   unsigned input_dialog_kb_type;
+   unsigned input_dialog_kb_idx;
+   unsigned input_driver_flushing_input;
+   menu_dialog_t dialog_st;
+
+   /* int16_t alignment */
+   menu_input_pointer_hw_state_t input_pointer_hw_state;
 
    /* When generating a menu list in menu_displaylist_build_list(),
     * the entry with a label matching 'pending_selection' will
     * be selected automatically */
    char pending_selection[PATH_MAX_LENGTH];
+   /* Storage container for current menu datetime
+    * representation string */
+   char datetime_cache[255];
 
+#ifdef HAVE_MENU
+   char input_dialog_kb_label_setting[256];
+   char input_dialog_kb_label[256];
+#endif
+   unsigned char kb_key_state[RETROK_LAST];
+
+   bool input_dialog_kb_display;
    /* when enabled, on next iteration the 'Quick Menu' list will
     * be pushed onto the stack */
    bool pending_quick_menu;
@@ -622,8 +638,6 @@ const char *menu_driver_get_last_start_file_name(void);
 void menu_driver_set_last_start_content(const char *start_content_path);
 const char *menu_driver_get_pending_selection(void);
 void menu_driver_set_pending_selection(const char *pending_selection);
-
-menu_handle_t *menu_driver_get_ptr(void);
 
 struct menu_state *menu_state_get_ptr(void);
 
@@ -834,6 +848,13 @@ extern menu_ctx_driver_t menu_ctx_xmb;
 extern menu_ctx_driver_t menu_ctx_stripes;
 
 void menu_input_search_cb(void *userdata, const char *str);
+/* This callback gets triggered by the keyboard whenever
+ * we press or release a keyboard key. When a keyboard
+ * key is being pressed down, 'down' will be true. If it
+ * is being released, 'down' will be false.
+ */
+void menu_input_key_event(bool down, unsigned keycode,
+      uint32_t character, uint16_t mod);
 
 extern const menu_ctx_driver_t *menu_ctx_drivers[];
 
