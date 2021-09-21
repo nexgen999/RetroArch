@@ -81,8 +81,6 @@
 
 #define MENU_SOUND_FORMATS "ogg|mod|xm|s3m|mp3|flac|wav"
 
-#define MIDI_DRIVER_BUF_SIZE 4096
-
 /**
  * db_to_gain:
  * @db          : Decibels.
@@ -814,24 +812,6 @@ static const wifi_driver_t *wifi_drivers[] = {
    NULL,
 };
 
-static location_driver_t location_null = {
-   NULL,
-   NULL,
-   NULL,
-   NULL,
-   NULL,
-   NULL,
-   "null",
-};
-
-static const location_driver_t *location_drivers[] = {
-#ifdef ANDROID
-   &location_android,
-#endif
-   &location_null,
-   NULL,
-};
-
 static ui_companion_driver_t ui_companion_null = {
    NULL, /* init */
    NULL, /* deinit */
@@ -878,42 +858,6 @@ static const record_driver_t *record_drivers[] = {
 #endif
    &record_null,
    NULL,
-};
-
-extern midi_driver_t midi_winmm;
-extern midi_driver_t midi_alsa;
-
-static void null_midi_free(void *p) { }
-static void *null_midi_init(const char *input, const char *output) { return (void*)-1; }
-static bool null_midi_get_avail_inputs(struct string_list *inputs) { union string_list_elem_attr attr = {0}; return string_list_append(inputs, "Null", attr); }
-static bool null_midi_get_avail_outputs(struct string_list *outputs) { union string_list_elem_attr attr = {0}; return string_list_append(outputs, "Null", attr); }
-static bool null_midi_set_input(void *p, const char *input) { return input == NULL || string_is_equal(input, "Null"); }
-static bool null_midi_set_output(void *p, const char *output) { return output == NULL || string_is_equal(output, "Null"); }
-static bool null_midi_read(void *p, midi_event_t *event) { return false; }
-static bool null_midi_write(void *p, const midi_event_t *event) { return true; }
-static bool null_midi_flush(void *p) { return true; }
-
-static midi_driver_t midi_null = {
-   "null",
-   null_midi_get_avail_inputs,
-   null_midi_get_avail_outputs,
-   null_midi_init,
-   null_midi_free,
-   null_midi_set_input,
-   null_midi_set_output,
-   null_midi_read,
-   null_midi_write,
-   null_midi_flush
-};
-
-static midi_driver_t *midi_drivers[] = {
-#if defined(HAVE_ALSA) && !defined(HAVE_HAKCHI) && !defined(HAVE_SEGAM) && !defined(DINGUX)
-   &midi_alsa,
-#endif
-#ifdef HAVE_WINMM
-   &midi_winmm,
-#endif
-   &midi_null
 };
 
 static void *nullcamera_init(const char *device, uint64_t caps,
@@ -1202,26 +1146,14 @@ struct rarch_state
    retro_time_t video_driver_frame_time_samples[
       MEASURE_FRAME_TIME_SAMPLES_COUNT];
    struct global              g_extern;         /* retro_time_t alignment */
-#ifdef HAVE_MENU
-   menu_input_t menu_input_state;               /* retro_time_t alignment */
-#endif
-
-
-
 #if defined(HAVE_CG) || defined(HAVE_GLSL) || defined(HAVE_SLANG) || defined(HAVE_HLSL)
    rarch_timer_t shader_delay_timer;            /* int64_t alignment */
 #endif
 #ifdef HAVE_DISCORD
    discord_state_t discord_st;                  /* int64_t alignment */
 #endif
-#ifdef HAVE_MENU
-   struct menu_state menu_driver_state;         /* int64_t alignment */
-#endif
 #ifdef HAVE_GFX_WIDGETS
    dispgfx_widget_t dispwidget_st;              /* uint64_t alignment */
-#endif
-#ifdef HAVE_MENU
-   struct menu_bind_state menu_input_binds;     /* uint64_t alignment */
 #endif
    struct retro_core_t        current_core;     /* uint64_t alignment */
 #if defined(HAVE_RUNAHEAD)
@@ -1239,20 +1171,15 @@ struct rarch_state
    uint64_t video_driver_frame_time_count;
    uint64_t video_driver_frame_count;
    struct retro_camera_callback camera_cb;    /* uint64_t alignment */
-   gfx_animation_t anim;                      /* uint64_t alignment */
    gfx_thumbnail_state_t gfx_thumb_state;     /* uint64_t alignment */
 #if defined(HAVE_NETWORKING) && defined(HAVE_NETWORKGAMEPAD)
    input_remote_state_t remote_st_ptr;        /* uint64_t alignment */
 #endif
 
    struct string_list *subsystem_fullpaths;
-   struct string_list *midi_drv_inputs;
-   struct string_list *midi_drv_outputs;
    struct string_list *audio_driver_devices_list;
 
    uint8_t *video_driver_record_gpu_buffer;
-   uint8_t *midi_drv_input_buffer;
-   uint8_t *midi_drv_output_buffer;
    bool    *load_no_content_hook;
    float   *audio_driver_output_samples_buf;
    char    *osk_grid[45];
@@ -1277,8 +1204,6 @@ struct rarch_state
    const camera_driver_t *camera_driver;
    void *camera_data;
 
-   void *midi_drv_data;
-
    const ui_companion_driver_t *ui_companion;
    void *ui_companion_data;
 
@@ -1286,8 +1211,6 @@ struct rarch_state
    void *ui_companion_qt_data;
 #endif
 
-   const location_driver_t *location_driver;
-   void *location_data;
 
    const bluetooth_driver_t *bluetooth_driver;
    void *bluetooth_data;
@@ -1352,11 +1275,6 @@ struct rarch_state
    const void *hid_data;
 #endif
    settings_t *configuration_settings;
-#ifdef HAVE_MENU
-   menu_handle_t *menu_driver_data;
-   void *menu_userdata;
-   const menu_ctx_driver_t *menu_driver_ctx;
-#endif
 #ifdef HAVE_NETWORKING
    /* Used while Netplay is running */
    netplay_t *netplay_data;
@@ -1385,9 +1303,6 @@ struct rarch_state
 
    gfx_ctx_driver_t current_video_context;               /* ptr alignment */
    content_state_t            content_st;                /* ptr alignment */
-   midi_event_t midi_drv_input_event;                    /* ptr alignment */
-   midi_event_t midi_drv_output_event;                   /* ptr alignment */
-   core_info_state_t core_info_st;                       /* ptr alignment */
    struct retro_hw_render_callback hw_render;            /* ptr alignment */
 #ifdef HAVE_BSV_MOVIE
    bsv_movie_t     *bsv_movie_state_handle;              /* ptr alignment */
@@ -1774,10 +1689,6 @@ struct rarch_state
    bool recording_enable;
    bool streaming_enable;
 
-   bool midi_drv_input_enabled;
-   bool midi_drv_output_enabled;
-
-   bool midi_drv_output_pending;
 
    bool main_ui_companion_is_on_foreground;
    bool keyboard_mapping_blocked;
@@ -1818,7 +1729,6 @@ static runloop_core_status_msg_t runloop_core_status_msg         =
 extern u32 __nx_applet_type;
 #endif
 
-static midi_driver_t *midi_drv                                   = &midi_null;
 static const video_display_server_t *current_display_server      = &dispserv_null;
 
 struct aspect_ratio_elem aspectratio_lut[ASPECT_RATIO_END] = {
@@ -1865,228 +1775,3 @@ unsigned subsystem_current_count                                = 0;
 struct retro_keybind input_config_binds[MAX_USERS][RARCH_BIND_LIST_END];
 struct retro_keybind input_autoconf_binds[MAX_USERS][RARCH_BIND_LIST_END];
 struct retro_subsystem_info subsystem_data[SUBSYSTEM_MAX_SUBSYSTEMS];
-
-#ifdef HAVE_MENU
-/* TODO/FIXME - public global variables */
-struct key_desc key_descriptors[RARCH_MAX_KEYS] =
-{
-   {RETROK_FIRST,         "Unmapped"},
-   {RETROK_BACKSPACE,     "Backspace"},
-   {RETROK_TAB,           "Tab"},
-   {RETROK_CLEAR,         "Clear"},
-   {RETROK_RETURN,        "Return"},
-   {RETROK_PAUSE,         "Pause"},
-   {RETROK_ESCAPE,        "Escape"},
-   {RETROK_SPACE,         "Space"},
-   {RETROK_EXCLAIM,       "!"},
-   {RETROK_QUOTEDBL,      "\""},
-   {RETROK_HASH,          "#"},
-   {RETROK_DOLLAR,        "$"},
-   {RETROK_AMPERSAND,     "&"},
-   {RETROK_QUOTE,         "\'"},
-   {RETROK_LEFTPAREN,     "("},
-   {RETROK_RIGHTPAREN,    ")"},
-   {RETROK_ASTERISK,      "*"},
-   {RETROK_PLUS,          "+"},
-   {RETROK_COMMA,         ","},
-   {RETROK_MINUS,         "-"},
-   {RETROK_PERIOD,        "."},
-   {RETROK_SLASH,         "/"},
-   {RETROK_0,             "0"},
-   {RETROK_1,             "1"},
-   {RETROK_2,             "2"},
-   {RETROK_3,             "3"},
-   {RETROK_4,             "4"},
-   {RETROK_5,             "5"},
-   {RETROK_6,             "6"},
-   {RETROK_7,             "7"},
-   {RETROK_8,             "8"},
-   {RETROK_9,             "9"},
-   {RETROK_COLON,         ":"},
-   {RETROK_SEMICOLON,     ";"},
-   {RETROK_LESS,          "<"},
-   {RETROK_EQUALS,        "="},
-   {RETROK_GREATER,       ">"},
-   {RETROK_QUESTION,      "?"},
-   {RETROK_AT,            "@"},
-   {RETROK_LEFTBRACKET,   "["},
-   {RETROK_BACKSLASH,     "\\"},
-   {RETROK_RIGHTBRACKET,  "]"},
-   {RETROK_CARET,         "^"},
-   {RETROK_UNDERSCORE,    "_"},
-   {RETROK_BACKQUOTE,     "`"},
-   {RETROK_a,             "A"},
-   {RETROK_b,             "B"},
-   {RETROK_c,             "C"},
-   {RETROK_d,             "D"},
-   {RETROK_e,             "E"},
-   {RETROK_f,             "F"},
-   {RETROK_g,             "G"},
-   {RETROK_h,             "H"},
-   {RETROK_i,             "I"},
-   {RETROK_j,             "J"},
-   {RETROK_k,             "K"},
-   {RETROK_l,             "L"},
-   {RETROK_m,             "M"},
-   {RETROK_n,             "N"},
-   {RETROK_o,             "O"},
-   {RETROK_p,             "P"},
-   {RETROK_q,             "Q"},
-   {RETROK_r,             "R"},
-   {RETROK_s,             "S"},
-   {RETROK_t,             "T"},
-   {RETROK_u,             "U"},
-   {RETROK_v,             "V"},
-   {RETROK_w,             "W"},
-   {RETROK_x,             "X"},
-   {RETROK_y,             "Y"},
-   {RETROK_z,             "Z"},
-   {RETROK_DELETE,        "Delete"},
-
-   {RETROK_KP0,           "Numpad 0"},
-   {RETROK_KP1,           "Numpad 1"},
-   {RETROK_KP2,           "Numpad 2"},
-   {RETROK_KP3,           "Numpad 3"},
-   {RETROK_KP4,           "Numpad 4"},
-   {RETROK_KP5,           "Numpad 5"},
-   {RETROK_KP6,           "Numpad 6"},
-   {RETROK_KP7,           "Numpad 7"},
-   {RETROK_KP8,           "Numpad 8"},
-   {RETROK_KP9,           "Numpad 9"},
-   {RETROK_KP_PERIOD,     "Numpad ."},
-   {RETROK_KP_DIVIDE,     "Numpad /"},
-   {RETROK_KP_MULTIPLY,   "Numpad *"},
-   {RETROK_KP_MINUS,      "Numpad -"},
-   {RETROK_KP_PLUS,       "Numpad +"},
-   {RETROK_KP_ENTER,      "Numpad Enter"},
-   {RETROK_KP_EQUALS,     "Numpad ="},
-
-   {RETROK_UP,            "Up"},
-   {RETROK_DOWN,          "Down"},
-   {RETROK_RIGHT,         "Right"},
-   {RETROK_LEFT,          "Left"},
-   {RETROK_INSERT,        "Insert"},
-   {RETROK_HOME,          "Home"},
-   {RETROK_END,           "End"},
-   {RETROK_PAGEUP,        "Page Up"},
-   {RETROK_PAGEDOWN,      "Page Down"},
-
-   {RETROK_F1,            "F1"},
-   {RETROK_F2,            "F2"},
-   {RETROK_F3,            "F3"},
-   {RETROK_F4,            "F4"},
-   {RETROK_F5,            "F5"},
-   {RETROK_F6,            "F6"},
-   {RETROK_F7,            "F7"},
-   {RETROK_F8,            "F8"},
-   {RETROK_F9,            "F9"},
-   {RETROK_F10,           "F10"},
-   {RETROK_F11,           "F11"},
-   {RETROK_F12,           "F12"},
-   {RETROK_F13,           "F13"},
-   {RETROK_F14,           "F14"},
-   {RETROK_F15,           "F15"},
-
-   {RETROK_NUMLOCK,       "Num Lock"},
-   {RETROK_CAPSLOCK,      "Caps Lock"},
-   {RETROK_SCROLLOCK,     "Scroll Lock"},
-   {RETROK_RSHIFT,        "Right Shift"},
-   {RETROK_LSHIFT,        "Left Shift"},
-   {RETROK_RCTRL,         "Right Control"},
-   {RETROK_LCTRL,         "Left Control"},
-   {RETROK_RALT,          "Right Alt"},
-   {RETROK_LALT,          "Left Alt"},
-   {RETROK_RMETA,         "Right Meta"},
-   {RETROK_LMETA,         "Left Meta"},
-   {RETROK_RSUPER,        "Right Super"},
-   {RETROK_LSUPER,        "Left Super"},
-   {RETROK_MODE,          "Mode"},
-   {RETROK_COMPOSE,       "Compose"},
-
-   {RETROK_HELP,          "Help"},
-   {RETROK_PRINT,         "Print"},
-   {RETROK_SYSREQ,        "Sys Req"},
-   {RETROK_BREAK,         "Break"},
-   {RETROK_MENU,          "Menu"},
-   {RETROK_POWER,         "Power"},
-   {RETROK_EURO,          {-30, -126, -84, 0}}, /* "�" */
-   {RETROK_UNDO,          "Undo"},
-   {RETROK_OEM_102,       "OEM-102"}
-};
-
-static void *null_menu_init(void **userdata, bool video_is_threaded)
-{
-   menu_handle_t *menu = (menu_handle_t*)calloc(1, sizeof(*menu));
-   if (!menu)
-      return NULL;
-   return menu;
-}
-
-static int null_menu_list_bind_init(menu_file_list_cbs_t *cbs,
-      const char *path, const char *label, unsigned type, size_t idx) { return 0; }
-
-static menu_ctx_driver_t menu_ctx_null = {
-  NULL,  /* set_texture */
-  NULL,  /* render_messagebox */
-  NULL,  /* render */
-  NULL,  /* frame */
-  null_menu_init,
-  NULL,  /* free */
-  NULL,  /* context_reset */
-  NULL,  /* context_destroy */
-  NULL,  /* populate_entries */
-  NULL,  /* toggle */
-  NULL,  /* navigation_clear */
-  NULL,  /* navigation_decrement */
-  NULL,  /* navigation_increment */
-  NULL,  /* navigation_set */
-  NULL,  /* navigation_set_last */
-  NULL,  /* navigation_descend_alphabet */
-  NULL,  /* navigation_ascend_alphabet */
-  NULL,  /* lists_init */
-  NULL,  /* list_insert */
-  NULL,  /* list_prepend */
-  NULL,  /* list_delete */
-  NULL,  /* list_clear */
-  NULL,  /* list_cache */
-  NULL,  /* list_push */
-  NULL,  /* list_get_selection */
-  NULL,  /* list_get_size */
-  NULL,  /* list_get_entry */
-  NULL,  /* list_set_selection */
-  null_menu_list_bind_init,
-  NULL,  /* load_image */
-  "null",
-  NULL,  /* environ */
-  NULL,  /* update_thumbnail_path */
-  NULL,  /* update_thumbnail_image */
-  NULL,  /* refresh_thumbnail_image */
-  NULL,  /* set_thumbnail_system */
-  NULL,  /* get_thumbnail_system */
-  NULL,  /* set_thumbnail_content */
-  NULL,  /* osk_ptr_at_pos */
-  NULL,  /* update_savestate_thumbnail_path */
-  NULL,  /* update_savestate_thumbnail_image */
-  NULL,  /* pointer_down */
-  NULL,  /* pointer_up   */
-  NULL   /* entry_action */
-};
-
-/* Menu drivers */
-static const menu_ctx_driver_t *menu_ctx_drivers[] = {
-#if defined(HAVE_MATERIALUI)
-   &menu_ctx_mui,
-#endif
-#if defined(HAVE_OZONE)
-   &menu_ctx_ozone,
-#endif
-#if defined(HAVE_RGUI)
-   &menu_ctx_rgui,
-#endif
-#if defined(HAVE_XMB)
-   &menu_ctx_xmb,
-#endif
-   &menu_ctx_null,
-   NULL
-};
-#endif
