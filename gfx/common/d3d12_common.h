@@ -19,7 +19,7 @@
 #include <retro_inline.h>
 
 #include "dxgi_common.h"
-#include <d3d12.h>
+#include "d3d12.h"
 
 typedef const ID3D12PipelineState* D3D12PipelineStateRef;
 
