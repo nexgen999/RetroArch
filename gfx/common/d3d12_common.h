@@ -44,8 +44,8 @@ typedef ID3D12GraphicsCommandList*                D3D12GraphicsCommandList;
 typedef ID3D12CommandQueue*                       D3D12CommandQueue;
 typedef ID3D12Device*                             D3D12Device;
 typedef ID3D12PipelineLibrary*                    D3D12PipelineLibrary;
-typedef D3D12_RESOURCE_ALLOCATION_INFO *          D3D12_RESOURCE_ALLOCATION_INFO;
-typedef D3D12_HEAP_PROPERTIES *                   D3D12_HEAP_PROPERTIES;
+typedef D3D12_RESOURCE_ALLOCATION_INFO*           D3D12_RESOURCE_ALLOCATION_INFO;
+typedef D3D12_HEAP_PROPERTIES*                    D3D12_HEAP_PROPERTIES;
 #ifdef DEBUG
 typedef ID3D12Debug*                              D3D12Debug;
 typedef ID3D12DebugDevice*                        D3D12DebugDevice;
@@ -53,52 +53,6 @@ typedef ID3D12DebugCommandQueue*                  D3D12DebugCommandQueue;
 typedef ID3D12DebugCommandList*                   D3D12DebugCommandList;
 #endif
 typedef ID3D12InfoQueue*                          D3D12InfoQueue;
-
-D3D12_RESOURCE_ALLOCATION_INFO(STDMETHODCALLTYPE* GetResourceAllocationInfo)(
-   ID3D12Device* This,
-   _In_  UINT visibleMask,
-   _In_  UINT numResourceDescs,
-   _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC* pResourceDescs);
-
-D3D12_RESOURCE_ALLOCATION_INFO ( STDMETHODCALLTYPE *GetResourceAllocationInfo )( 
-   ID3D12Device * This,
-   _In_  UINT visibleMask,
-   _In_  UINT numResourceDescs,
-   _In_reads_(numResourceDescs)  const D3D12_RESOURCE_DESC *pResourceDescs);
-
-D3D12_HEAP_PROPERTIES ( STDMETHODCALLTYPE *GetCustomHeapProperties )( 
-   ID3D12Device * This,
-   _In_  UINT nodeMask,
-   D3D12_HEAP_TYPE heapType);
-
-HRESULT ( STDMETHODCALLTYPE *StorePipeline )( 
-   ID3D12PipelineLibrary * This,
-   _In_opt_  LPCWSTR pName,
-   _In_  ID3D12PipelineState *pPipeline);
-
-void ( STDMETHODCALLTYPE *CopyDescriptors )( 
-   ID3D12Device * This,
-   _In_  UINT NumDestDescriptorRanges,
-   _In_reads_(NumDestDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts,
-   _In_reads_opt_(NumDestDescriptorRanges)  const UINT *pDestDescriptorRangeSizes,
-   _In_  UINT NumSrcDescriptorRanges,
-   _In_reads_(NumSrcDescriptorRanges)  const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts,
-   _In_reads_opt_(NumSrcDescriptorRanges)  const UINT *pSrcDescriptorRangeSizes,
-   _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
-
-void ( STDMETHODCALLTYPE *CopyDescriptorsSimple )( 
-   ID3D12Device * This,
-   _In_  UINT NumDescriptors,
-   _In_  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
-   _In_  D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
-   _In_  D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
-
-HRESULT ( STDMETHODCALLTYPE *CreateCommandSignature )( 
-   ID3D12Device * This,
-   _In_  const D3D12_COMMAND_SIGNATURE_DESC *pDesc,
-   _In_opt_  ID3D12RootSignature *pRootSignature,
-   REFIID riid,
-   _COM_Outptr_opt_  void **ppvCommandSignature);
 
 static INLINE ULONG D3D12Release(void* object)
 {
