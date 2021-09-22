@@ -9,7 +9,7 @@ trigger:
 name: $(MajorVersion).$(MinorVersion).$(date:yy)$(DayOfYear).0
 
 pool:
-  vmImage: 'windows-latest'
+  name: "Paperspace VM"
 
 variables:
 - group: uwp-pipeline
