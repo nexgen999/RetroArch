@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool: 
-  name: 'Paperspace VM'
+  name: "Paperspace VM"
   #vmImage: 'Default'
 
 variables:
