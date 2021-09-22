@@ -1,12 +1,8 @@
 This uses RetroArch-Redist, another repository, to add the .dll files to Azure builds for use with the Microsoft Store.  A package for upload to the Microsoft Store is automatically created once a week.
 
-Generate Microsoft Store package for Xbox (Unstable): 
+Generate Microsoft Store package for Xbox (stable and unstable): 
 
 [![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_apis/build/status/RA%20Generate%20Store%20Package?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_build/latest?definitionId=14&branchName=main)
-
-Generate Microsoft Store package for Xbox (Stable): 
-
-[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_apis/build/status/Nun-z.RetroArchStable?branchName=main)](https://dev.azure.com/Nun-z/RA%20Generate%20Store%20Package/_build/latest?definitionId=28&branchName=main)
 
 Generate dev mode package for Xbox:  
 
