@@ -6,11 +6,11 @@ Generate Microsoft Store package for Xbox (stable and unstable):
 
 Generate dev mode package for Xbox:  
 
-[![Build Status](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_apis/build/status/RA%20Generate%20Dev%20Mode%20Package?branchName=main&jobName=Job)](https://dev.azure.com/Nun-z/RA%20Generate%20Dev%20Mode%20Package/_build/latest?definitionId=16&branchName=main)
+[![Build Status](https://dev.azure.com/Nun-z/Generate%20Packages/_apis/build/status/RA%20Dev%20Package?branchName=main)](https://dev.azure.com/Nun-z/Generate%20Packages/_build/latest?definitionId=55&branchName=main)
 
 CI on commit to repo:
 
-[![Build Status](https://dev.azure.com/Nun-z/RetroArch/_apis/build/status/Nun-z.RetroArch?branchName=master)](https://dev.azure.com/Nun-z/RetroArch/_build/latest?definitionId=11&branchName=master)
+[![Build Status](https://dev.azure.com/Nun-z/Generate%20Packages/_apis/build/status/Nun-z.RetroArch?branchName=master)](https://dev.azure.com/Nun-z/Generate%20Packages/_build/latest?definitionId=60&branchName=master)
 
 # RetroArch
 
