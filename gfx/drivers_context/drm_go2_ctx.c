@@ -48,10 +48,6 @@
 #include "../common/egl_common.h"
 #endif
 
-#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-#include "../common/gl_common.h"
-#endif
-
 #ifdef HAVE_CONFIG_H
 #include "../../config.h"
 #endif
@@ -262,7 +258,7 @@ static bool gfx_ctx_go2_drm_set_video_mode(void *data,
 
    go2_context_make_current(drm->context);
 
-   glClear(GL_COLOR_BUFFER_BIT);
+   gl_clear();
 
    return true;
 }
